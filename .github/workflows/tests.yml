@@ -65,3 +65,30 @@ jobs:
         run: |
           touch database/database.sqlite
           php artisan migrate --seed --force
+
+  docker:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build production image
+        run: docker build -t ledgerly-api .
+
+      - name: Boot image against Postgres and hit /up
+        run: |
+          docker network create ci
+          docker run -d --name db --network ci -e POSTGRES_USER=ledgerly -e POSTGRES_PASSWORD=ledgerly -e POSTGRES_DB=ledgerly postgres:16
+          for i in $(seq 1 30); do docker exec db pg_isready -U ledgerly && break; sleep 1; done
+          docker run -d --name api --network ci -p 8080:8080 \
+            -e APP_KEY_SECRET=ci-secret -e DB_URL=postgresql://ledgerly:ledgerly@db:5432/ledgerly \
+            -e ADMIN_EMAIL=ci@example.com -e ADMIN_PASSWORD=ci-password-123 ledgerly-api
+          for i in $(seq 1 30); do curl -fsS localhost:8080/up && break; sleep 2; done
+          curl -fsS -X POST localhost:8080/api/v1/auth/login -H 'Accept: application/json' \
+            -d email=ci@example.com -d password=ci-password-123 | grep -q '"success":true'
+
+      - name: Container logs
+        if: always()
+        run: docker logs api || true

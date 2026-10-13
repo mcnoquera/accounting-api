@@ -18,6 +18,13 @@ class DatabaseSeeder extends Seeder
 {
     public function run(JournalEntryService $journal): void
     {
+        // Demo data assumes an empty database; never mix it into real books.
+        if (User::exists()) {
+            $this->command?->warn('Users already exist; skipping demo seed.');
+
+            return;
+        }
+
         $admin = User::factory()->role(Role::Admin)->create(['name' => 'Alex Admin', 'email' => 'admin@example.com']);
         $accountant = User::factory()->role(Role::Accountant)->create(['name' => 'Casey Accountant', 'email' => 'accountant@example.com']);
         $controller = User::factory()->role(Role::Accountant)->create(['name' => 'Jordan Controller', 'email' => 'controller@example.com']);

@@ -21,6 +21,24 @@ php artisan test        # PHPUnit feature + unit tests
 ./vendor/bin/pint       # code style
 ```
 
+## Deploy (Render)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/mcnoquera/accounting-api)
+
+`render.yaml` creates the API (Docker, `Dockerfile`) and a Postgres database, and redeploys on every
+push to `main`. Render asks for two values when you create it:
+
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD` (12+ characters): the first admin, created on boot if missing.
+
+On every boot the container caches config, runs migrations and ensures the admin exists, so restarts
+and redeploys are safe. `SEED_DEMO_DATA=true` loads the demo company into an **empty** database only;
+its users all have the password `password`, so use it only for a throwaway demo. The app key is
+derived from Render's generated `APP_KEY_SECRET`; set `APP_KEY` yourself to override.
+
+If the service name `ledgerly-api` is taken, Render picks another URL: update `APP_URL` to match.
+Free-tier services sleep after 15 minutes idle (the first request then takes up to a minute), and
+free Postgres databases expire after 30 days unless upgraded.
+
 ## What it does
 
 **Bookkeeping**
