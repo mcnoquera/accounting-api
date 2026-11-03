@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\AuditController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\JournalEntryController;
+use App\Http\Controllers\Api\V1\PeriodController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
@@ -33,6 +34,10 @@ Route::prefix('v1')->group(function () {
         Route::post('journal-entries/{journalEntry}/post', [JournalEntryController::class, 'post']);
         Route::post('journal-entries/{journalEntry}/void', [JournalEntryController::class, 'void']);
         Route::post('journal-entries/{journalEntry}/reverse', [JournalEntryController::class, 'reverse']);
+
+        Route::get('periods', [PeriodController::class, 'index']);
+        Route::post('periods/{period}/close', [PeriodController::class, 'close'])->where('period', '\d{4}-(0[1-9]|1[0-2])');
+        Route::post('periods/{period}/reopen', [PeriodController::class, 'reopen'])->where('period', '\d{4}-(0[1-9]|1[0-2])');
 
         Route::prefix('reports')->group(function () {
             Route::get('trial-balance', [ReportController::class, 'trialBalance']);

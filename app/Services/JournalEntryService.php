@@ -16,6 +16,7 @@ class JournalEntryService
     public function __construct(
         private JournalEntryRepositoryInterface $entries,
         private AccountRepositoryInterface $accounts,
+        private PeriodService $periods,
     ) {}
 
     public function list(array $filters, int $perPage = 20): LengthAwarePaginator
@@ -31,6 +32,7 @@ class JournalEntryService
     /** @param array{entry_date:string, reference?:?string, description:string, lines:list<array>} $data */
     public function createDraft(array $data, User $author): JournalEntry
     {
+        $this->periods->assertOpen($data['entry_date'], 'The entry date is in a closed period ({period}).');
         $lines = $this->normalizeLines($data['lines']);
         $this->assertLinesValid($lines);
 
@@ -47,6 +49,8 @@ class JournalEntryService
     public function updateDraft(JournalEntry $entry, array $data): JournalEntry
     {
         $this->assertStatus($entry, EntryStatus::Draft, 'Only draft entries can be edited.');
+        // A draft left in a closed month may be moved to an open date, but nothing can be dated into one.
+        $this->periods->assertOpen($data['entry_date'], 'The entry date is in a closed period ({period}).');
         $lines = $this->normalizeLines($data['lines']);
         $this->assertLinesValid($lines);
 
@@ -66,6 +70,10 @@ class JournalEntryService
     public function post(JournalEntry $entry, User $poster): JournalEntry
     {
         $this->assertStatus($entry, EntryStatus::Draft, 'Only draft entries can be posted.');
+        $this->periods->assertOpen(
+            $entry->entry_date->format('Y-m-d'),
+            'This entry is dated in a closed period ({period}). Change its date to an open period before posting.',
+        );
         $lines = $entry->lines->map(fn ($l) => [
             'account_id' => $l->account_id, 'debit' => $l->debit, 'credit' => $l->credit, 'memo' => $l->memo,
         ])->all();
@@ -89,6 +97,10 @@ class JournalEntryService
         if ($entry->reversal_of_id !== null || $entry->reversedBy()->exists()) {
             throw new DomainRuleException('This entry is part of a reversal and cannot be voided. The reversal already cancels its effect.');
         }
+        $this->periods->assertOpen(
+            $entry->entry_date->format('Y-m-d'),
+            'This entry is in a closed period ({period}) and cannot be voided. Reverse it instead, dated in an open period.',
+        );
 
         $entry->status = EntryStatus::Voided;
         $entry->voided_by = $voider->id;
@@ -101,12 +113,14 @@ class JournalEntryService
     /**
      * Cancels a posted entry with a new, posted entry that swaps every debit and credit,
      * dated $date (an open period). The original stays posted, so both appear in the
-     * ledger and net to zero; each entry links to the other.
+     * ledger and net to zero; each entry links to the other. Without a date it uses today,
+     * or the first open date if today is in a closed period.
      */
-    public function reverse(JournalEntry $entry, User $user, string $date, string $reason): JournalEntry
+    public function reverse(JournalEntry $entry, User $user, ?string $date, string $reason): JournalEntry
     {
         return DB::transaction(function () use ($entry, $user, $date, $reason) {
             $entry = JournalEntry::query()->lockForUpdate()->findOrFail($entry->id);
+            $date ??= max(array_filter([now()->toDateString(), $this->periods->firstOpenDate(), $entry->entry_date->format('Y-m-d')]));
 
             $this->assertStatus($entry, EntryStatus::Posted, 'Only posted entries can be reversed.');
             if ($entry->reversal_of_id !== null) {
@@ -120,6 +134,7 @@ class JournalEntryService
                     'entry_date' => ['Use a date on or after '.$entry->entry_date->format('Y-m-d').'.'],
                 ]);
             }
+            $this->periods->assertOpen($date, 'The reversal date is in a closed period ({period}).');
 
             $lines = $entry->lines->map(fn ($l) => [
                 'account_id' => $l->account_id,
