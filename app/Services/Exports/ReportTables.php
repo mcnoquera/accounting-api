@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Services\ContactService;
 use App\Services\ReportService;
 use App\Services\VatSummaryService;
+use App\Services\WithholdingSummaryService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -20,7 +21,7 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class ReportTables
 {
-    public function __construct(private ReportService $reports, private VatSummaryService $vat, private ContactService $contacts) {}
+    public function __construct(private ReportService $reports, private VatSummaryService $vat, private ContactService $contacts, private WithholdingSummaryService $withholding) {}
 
     public function trialBalance(?string $asOf): array
     {
@@ -113,6 +114,65 @@ class ReportTables
         return $this->table($title, $this->asOfLabel($a['as_of']),
             [$control === ControlType::Receivable ? 'Customer' : 'Supplier', 'TIN', 'Terms (days)', 'Current', '1–30', '31–60', '61–90', 'Over 90', 'Total'],
             [3, 4, 5, 6, 7, 8], $rows, $notes);
+    }
+
+    /** Tax withheld by ATC and month (0619-E / 1601-EQ), and tax customers withheld from us. */
+    public function withholding(int $year, int $quarter): array
+    {
+        $w = $this->withholding->summary($year, $quarter);
+        $months = array_column($w['withheld']['months'], 'month');
+        $blank = fn (int $n) => array_fill(0, $n, '');
+
+        $rows = [$this->row(['Withheld from suppliers', ...$blank(2 + 2 * count($months) + 2)], 'section')];
+        foreach ($w['withheld']['by_atc'] as $r) {
+            $cells = [$r['atc'], $r['description'], $r['rate'].'%'];
+            foreach ($r['months'] as $m) {
+                array_push($cells, $m['base'], $m['tax']);
+            }
+            $rows[] = $this->row([...$cells, $r['base'], $r['tax']]);
+        }
+        $totals = ['Total', '', ''];
+        foreach ($w['withheld']['months'] as $m) {
+            array_push($totals, $m['base'], $m['tax']);
+        }
+        $rows[] = $this->row([...$totals, $w['withheld']['total']['base'], $w['withheld']['total']['tax']], 'total');
+
+        $rows[] = $this->row(['Withheld from us by customers (Forms 2307)', ...$blank(2 + 2 * count($months) + 2)], 'section');
+        foreach ($w['received']['by_customer'] as $r) {
+            $rows[] = $this->row([$r['atc'], ($r['name'] ?? 'No customer').($r['tin'] ? " ({$r['tin']})" : ''), $r['rate'].'%', ...$blank(2 * count($months)), $r['base'], $r['tax']]);
+        }
+        $rows[] = $this->row(['Total', '', '', ...$blank(2 * count($months)), $w['received']['total']['base'], $w['received']['total']['tax']], 'total');
+
+        $columns = ['ATC', 'Nature of income payment', 'Rate'];
+        foreach ($months as $m) {
+            $label = CarbonImmutable::parse($m.'-01')->format('M');
+            array_push($columns, "{$label} base", "{$label} tax");
+        }
+        array_push($columns, 'Quarter base', 'Quarter tax');
+
+        $notes = [];
+        if ($w['withheld']['booked'] !== $w['withheld']['total']['tax']) {
+            $notes[] = 'Booked to withholding tax payable on coded entries: '.Exporter::pesos($w['withheld']['booked'], true).'.';
+        }
+        if ($w['withheld']['payees_without_contact'] > 0) {
+            $notes[] = "{$w['withheld']['payees_without_contact']} payee line(s) have no supplier; add contacts to complete the QAP.";
+        }
+
+        return $this->table('Withholding tax summary', sprintf('Q%d %d (%s to %s), calendar quarter', $quarter, $year, $this->date($w['from']), $this->date($w['to'])),
+            $columns, range(3, count($columns) - 1), $rows, $notes);
+    }
+
+    /** Quarterly alphalist of payees (QAP) source data. */
+    public function withholdingPayees(int $year, int $quarter): array
+    {
+        $w = $this->withholding->summary($year, $quarter);
+        $rows = array_map(fn ($p) => $this->row([
+            (string) ($p['tin'] ?? ''), $p['name'] ?? 'No supplier on entry', $p['atc'], $p['description'], $p['rate'].'%', $p['base'], $p['tax'],
+        ]), $w['withheld']['payees']);
+        $rows[] = $this->row(['', 'Total', '', '', '', $w['withheld']['total']['base'], $w['withheld']['total']['tax']], 'total');
+
+        return $this->table('Payees subject to expanded withholding tax', sprintf('Q%d %d (%s to %s)', $quarter, $year, $this->date($w['from']), $this->date($w['to'])),
+            ['TIN', 'Payee', 'ATC', 'Nature of income payment', 'Rate', 'Amount of income payment', 'Tax withheld'], [5, 6], $rows);
     }
 
     public function ledger(Account $account, ?string $from, ?string $to): array

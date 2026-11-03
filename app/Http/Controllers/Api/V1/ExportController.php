@@ -41,6 +41,8 @@ class ExportController extends Controller
             'balance-sheet' => $this->tables->balanceSheet($data['as_of'] ?? null),
             'income-statement' => $this->tables->incomeStatement($data['from'] ?? null, $data['to'] ?? null),
             'aging' => $this->tables->aging(ControlType::from($data['type']), $data['as_of'] ?? null),
+            'withholding' => $this->tables->withholding((int) ($data['year'] ?? now()->year), (int) ($data['quarter'] ?? now()->quarter)),
+            'withholding-payees' => $this->tables->withholdingPayees((int) ($data['year'] ?? now()->year), (int) ($data['quarter'] ?? now()->quarter)),
             'vat-summary' => $this->tables->vatSummary((int) ($data['year'] ?? now()->year), (int) ($data['quarter'] ?? now()->quarter)),
         };
 
