@@ -16,6 +16,37 @@ php artisan serve               # http://localhost:8000
 Demo users (password `password`): `admin@example.com`, `accountant@example.com`,
 `controller@example.com`, `auditor@example.com`.
 
+### Using MySQL or PostgreSQL
+
+SQLite is the zero-setup default. The API also runs on **MySQL 8.4+** and **PostgreSQL 16+** (production
+uses Postgres). Create an empty database, then set these in `.env` instead of `DB_CONNECTION=sqlite`:
+
+```dotenv
+DB_CONNECTION=mysql        # or pgsql
+DB_HOST=127.0.0.1
+DB_PORT=3306               # 5432 for pgsql
+DB_DATABASE=ledgerly
+DB_USERNAME=ledgerly
+DB_PASSWORD=ledgerly
+```
+
+```sql
+-- MySQL
+CREATE DATABASE ledgerly CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'ledgerly'@'127.0.0.1' IDENTIFIED BY 'ledgerly';
+GRANT ALL ON ledgerly.* TO 'ledgerly'@'127.0.0.1';
+```
+
+Then `php artisan migrate --seed`. Tests use in-memory SQLite by default; to run them against another
+database, point the `DB_*` variables at a **separate, disposable** database (tests wipe it):
+
+```bash
+DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 DB_DATABASE=ledgerly_test \
+DB_USERNAME=ledgerly DB_PASSWORD=ledgerly php artisan test
+```
+
+CI runs the suite on SQLite, MySQL 8.4 and PostgreSQL 16.
+
 ```bash
 php artisan test        # PHPUnit feature + unit tests
 ./vendor/bin/pint       # code style
