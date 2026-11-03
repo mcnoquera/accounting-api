@@ -160,15 +160,12 @@ class PeriodCloseTest extends TestCase
             ->assertJsonPath('data.entry_date', '2026-11-01');
     }
 
-    public function test_only_admin_reopens_only_the_latest_period_with_a_reason(): void
+    public function test_admin_or_accountant_reopens_only_the_latest_period_with_a_reason(): void
     {
-        $this->actingAsRole(Role::Accountant);
+        $accountant = $this->actingAsRole(Role::Accountant);
         $this->entry('2026-09-10');
         $this->closeThrough('2026-09', '2026-10');
 
-        $this->postJson('/api/v1/periods/2026-10/reopen', ['reason' => 'Late supplier bill'])->assertForbidden();
-
-        $admin = $this->actingAsRole(Role::Admin);
         $this->postJson('/api/v1/periods/2026-10/reopen')->assertStatus(422)->assertJsonValidationErrors('reason');
         $this->postJson('/api/v1/periods/2026-09/reopen', ['reason' => 'Late supplier bill'])->assertStatus(422)
             ->assertJsonPath('message', 'Only the most recent closed period (2026-10) can be reopened.');
@@ -176,7 +173,7 @@ class PeriodCloseTest extends TestCase
         $this->postJson('/api/v1/periods/2026-10/reopen', ['reason' => 'Late supplier bill'])->assertOk()
             ->assertJsonPath('data.status', 'open')
             ->assertJsonPath('data.reopen_reason', 'Late supplier bill')
-            ->assertJsonPath('data.reopened_by', $admin->id)
+            ->assertJsonPath('data.reopened_by', $accountant->id)
             ->assertJsonPath('meta.locked_through', '2026-09-30');
 
         // October takes entries again and can be closed again; November can't skip it.
@@ -191,6 +188,17 @@ class PeriodCloseTest extends TestCase
         $this->actingAsRole(Role::Auditor);
         $this->getJson('/api/v1/periods')->assertOk();
         $this->postJson('/api/v1/periods/2026-10/close')->assertForbidden();
+        $this->postJson('/api/v1/periods/2026-10/reopen', ['reason' => 'Auditor attempt'])->assertForbidden();
+    }
+
+    public function test_admin_can_reopen(): void
+    {
+        $this->actingAsRole(Role::Accountant);
+        $this->entry('2026-10-10');
+        $this->closeThrough('2026-10');
+        $admin = $this->actingAsRole(Role::Admin);
+        $this->postJson('/api/v1/periods/2026-10/reopen', ['reason' => 'Year-end adjustment'])->assertOk()
+            ->assertJsonPath('data.reopened_by', $admin->id);
     }
 
     public function test_invalid_period_is_not_found(): void

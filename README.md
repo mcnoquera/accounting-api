@@ -89,7 +89,7 @@ free Postgres databases expire after 30 days unless upgraded.
 **Month-end close**
 - Periods are calendar months, closed strictly in order by an admin or accountant (from the month of the earliest entry, and only once the month has ended). Closing locks every date up to the month's last day.
 - In a closed period you can't create, edit into, post or void entries; correct them with a **reversal** dated in an open period (the default reversal date skips past closed months). Drafts left in a closed month can be deleted or moved to an open date.
-- Only an admin can reopen, only the most recent closed period, and only with a reason. Closing reports how many drafts are still dated in the month. Close and reopen are in the audit trail.
+- An admin or accountant can reopen, only the most recent closed period, and only with a reason. Closing reports how many drafts are still dated in the month. Close and reopen are in the audit trail.
 
 **Tax codes (VAT and withholding)**
 - Seeded codes: `VAT12` (vatable 12%), `VAT0` (zero-rated), `VATEX` (exempt), and the BIR expanded-withholding ATC schedule from Form 1601-EQ (January 2019; RR 2-98 as amended by RR 11-2018): 84 codes, all except the electric-utility meter-deposit codes (WI/WC650–663). The 28 most businesses use start active (professional fees, consultants, bookkeeping agents, rent, contractors, brokers, sales agents, top withholding agent goods/services); specialised ones start inactive. **Confirm with your accountant, and check later BIR issuances for new codes or rate changes.** Admins add, rename and deactivate codes; a code's kind, rate and category are locked once it's used on an entry.
