@@ -3,8 +3,10 @@
 use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\AuditController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\JournalEntryController;
 use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -16,6 +18,13 @@ Route::prefix('v1')->group(function () {
 
         Route::get('dashboard', [ReportController::class, 'dashboard']);
 
+        Route::get('company', [CompanyController::class, 'show']);
+        Route::put('company', [CompanyController::class, 'update']);
+
+        Route::apiResource('users', UserController::class)->except(['destroy']);
+        Route::post('users/{user}/unlock', [UserController::class, 'unlock']);
+
+        Route::post('accounts/load-defaults', [AccountController::class, 'loadDefaults']);
         Route::apiResource('accounts', AccountController::class);
         Route::get('accounts/{account}/ledger', [AccountController::class, 'ledger']);
 
@@ -23,6 +32,7 @@ Route::prefix('v1')->group(function () {
             ->parameters(['journal-entries' => 'journalEntry']);
         Route::post('journal-entries/{journalEntry}/post', [JournalEntryController::class, 'post']);
         Route::post('journal-entries/{journalEntry}/void', [JournalEntryController::class, 'void']);
+        Route::post('journal-entries/{journalEntry}/reverse', [JournalEntryController::class, 'reverse']);
 
         Route::prefix('reports')->group(function () {
             Route::get('trial-balance', [ReportController::class, 'trialBalance']);

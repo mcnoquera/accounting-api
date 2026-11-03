@@ -10,7 +10,10 @@ use Illuminate\Support\Collection;
 
 class JournalEntryRepository implements JournalEntryRepositoryInterface
 {
-    private const RELATIONS = ['lines.account', 'creator:id,name', 'poster:id,name', 'voider:id,name'];
+    private const RELATIONS = [
+        'lines.account', 'creator:id,name', 'poster:id,name', 'voider:id,name',
+        'reversalOf:id,number', 'reversedBy:id,number,reversal_of_id',
+    ];
 
     public function paginate(array $filters, int $perPage = 20): LengthAwarePaginator
     {

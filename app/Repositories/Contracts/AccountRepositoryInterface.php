@@ -20,6 +20,13 @@ interface AccountRepositoryInterface
 
     public function hasLines(Account $account): bool;
 
+    public function hasChildren(Account $account): bool;
+
+    public function isEmpty(): bool;
+
+    /** @param list<int> $ids  @return list<int> ids among $ids that have child accounts */
+    public function withChildren(array $ids): array;
+
     /** @param list<int> $ids  @return Collection<int, Account> keyed by id */
     public function findMany(array $ids): Collection;
 }
