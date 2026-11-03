@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\ExportController;
 use App\Http\Controllers\Api\V1\FiscalYearController;
 use App\Http\Controllers\Api\V1\JournalEntryController;
 use App\Http\Controllers\Api\V1\PeriodController;
+use App\Http\Controllers\Api\V1\PurchaseBillController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\SalesInvoiceController;
 use App\Http\Controllers\Api\V1\TaxCodeController;
@@ -42,6 +43,10 @@ Route::prefix('v1')->group(function () {
         Route::post('sales-invoices/{salesInvoice}/issue', [SalesInvoiceController::class, 'issue']);
         Route::post('sales-invoices/{salesInvoice}/void', [SalesInvoiceController::class, 'void']);
         Route::get('sales-invoices/{salesInvoice}/pdf', [SalesInvoiceController::class, 'pdf']);
+
+        Route::apiResource('purchase-bills', PurchaseBillController::class)->parameters(['purchase-bills' => 'purchaseBill']);
+        Route::post('purchase-bills/{purchaseBill}/record', [PurchaseBillController::class, 'record']);
+        Route::post('purchase-bills/{purchaseBill}/void', [PurchaseBillController::class, 'void']);
 
         Route::apiResource('tax-codes', TaxCodeController::class)->only(['index', 'store', 'update'])
             ->parameters(['tax-codes' => 'taxCode']);

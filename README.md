@@ -93,6 +93,10 @@ free Postgres databases expire after 30 days unless upgraded.
 - **Issue** numbers the invoice (`SI-000001`, gap-free) and posts an ordinary journal entry through the normal rules (period lock, tax check, customer on the control account): Dr receivable for the total, Cr revenue per account and VAT code, Cr Output VAT. The entry is linked to the invoice and can only be undone by **voiding** the invoice (unpaid only), which reverses it on the invoice date or the first open date.
 - **PDF** for customers: seller's registered name, TIN (VAT/Non-VAT), address; invoice number and dates; buyer's name, address and TIN; lines; VATable / zero-rated / exempt sales, VAT and total, or the non-VAT notice. Printing is audited. *System-generated invoices generally require the system to be registered with the BIR; confirm with your accountant.*
 
+**Supplier bills**
+- Drafts: supplier, the supplier's invoice number (unique per supplier among non-voided bills), dates (due date defaults to the supplier's terms), and lines with net amount, expense or asset account, VAT code and withholding ATC.
+- **Record** numbers the bill (`PB-000001`) and posts through the normal rules: Dr each line (with its codes), Dr Input VAT, Cr expanded withholding tax payable (withheld when the bill is recorded), Cr payable (supplier) for the amount due = total − withholding. The bill feeds the VAT summary, the withholding payee list and payables aging. Void (unpaid only) reverses the entry; document entries can't be voided or reversed directly.
+
 **Customers and suppliers (subsidiary ledgers)**
 - Contacts: name, type (customer / supplier / both), TIN (normalised like the company TIN), address, email, phone, payment terms in days (default 30), active flag. Audited; a contact used on entries can't be deleted, only deactivated.
 - Accounts can be a `control_type` `receivable` (asset) or `payable` (liability) control account; the Philippine starter chart tags 1210 and 2110. Every line on a control account must name an active customer (receivable) or supplier (payable). Other lines may name a contact too, e.g. the payee of a cash expense.
@@ -159,6 +163,9 @@ amounts in requests are decimal strings like `"1250.50"`.
 | GET/PUT/DELETE | `/sales-invoices/{id}` | PUT/DELETE drafts only |
 | POST | `/sales-invoices/{id}/issue` · `/void` | void takes `{reason}` |
 | GET | `/sales-invoices/{id}/pdf` | customer-facing PDF (audited) |
+| GET/POST | `/purchase-bills` | same filters as invoices; POST creates a draft |
+| GET/PUT/DELETE | `/purchase-bills/{id}` | PUT/DELETE drafts only |
+| POST | `/purchase-bills/{id}/record` · `/void` | void takes `{reason}` |
 | GET/POST | `/contacts` | `?type=customer\|supplier&active&q`; POST admin/accountant |
 | GET/PUT/DELETE | `/contacts/{id}` | DELETE only if unused |
 | GET | `/contacts/{id}/ledger` | `?type=receivable\|payable&from&to` |
