@@ -135,6 +135,9 @@ class PurchaseBillService
     {
         return DB::transaction(function () use ($bill, $user, $reason) {
             $bill = PurchaseBill::query()->lockForUpdate()->findOrFail($bill->id);
+            if ($bill->is_opening) {
+                throw new DomainRuleException('Opening bills change only by replacing the opening balances.');
+            }
             if ($bill->status !== InvoiceStatus::Issued || $bill->amount_paid > 0) {
                 throw new DomainRuleException('Only recorded bills with no payments can be voided.');
             }
