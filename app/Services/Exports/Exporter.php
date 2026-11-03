@@ -71,12 +71,17 @@ class Exporter
             'money' => fn (int $cents) => self::pesos($cents, true),
         ])->render();
 
+        return $this->renderHtml($html, count($table['columns']) > 5);
+    }
+
+    public function renderHtml(string $html, bool $landscape = false): string
+    {
         $options = new Options;
         $options->setIsRemoteEnabled(false); // never fetch external resources while rendering
         $options->setDefaultFont('DejaVu Sans'); // has the ₱ glyph
         $pdf = new Dompdf($options);
         $pdf->loadHtml($html, 'UTF-8');
-        $pdf->setPaper('A4', count($table['columns']) > 5 ? 'landscape' : 'portrait');
+        $pdf->setPaper('A4', $landscape ? 'landscape' : 'portrait');
         $pdf->render();
 
         return $pdf->output();

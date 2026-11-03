@@ -104,6 +104,7 @@ class JournalEntryService
     {
         $this->assertStatus($entry, EntryStatus::Posted, 'Only posted entries can be voided.');
         $this->assertNotClosing($entry);
+        $this->assertNotDocument($entry);
         if ($entry->reversal_of_id !== null || $entry->reversedBy()->exists()) {
             throw new DomainRuleException('This entry is part of a reversal and cannot be voided. The reversal already cancels its effect.');
         }
@@ -126,14 +127,17 @@ class JournalEntryService
      * ledger and net to zero; each entry links to the other. Without a date it uses today,
      * or the first open date if today is in a closed period.
      */
-    public function reverse(JournalEntry $entry, User $user, ?string $date, string $reason): JournalEntry
+    public function reverse(JournalEntry $entry, User $user, ?string $date, string $reason, bool $fromDocument = false): JournalEntry
     {
-        return DB::transaction(function () use ($entry, $user, $date, $reason) {
+        return DB::transaction(function () use ($entry, $user, $date, $reason, $fromDocument) {
             $entry = JournalEntry::query()->lockForUpdate()->findOrFail($entry->id);
             $date ??= max(array_filter([now()->toDateString(), $this->periods->firstOpenDate(), $entry->entry_date->format('Y-m-d')]));
 
             $this->assertStatus($entry, EntryStatus::Posted, 'Only posted entries can be reversed.');
             $this->assertNotClosing($entry);
+            if (! $fromDocument) {
+                $this->assertNotDocument($entry);
+            }
             if ($entry->reversal_of_id !== null) {
                 throw new DomainRuleException('A reversing entry cannot itself be reversed.');
             }
@@ -390,6 +394,15 @@ class JournalEntryService
                     $actual === 0 ? 'none' : number_format(abs($actual) / 100, 2).' '.($actual > 0 ? 'debit' : 'credit'),
                 ), ['lines' => ["Add a {$side} line to an account tagged \"{$role->label()}\" for ".number_format(abs($amount) / 100, 2).'.']]);
             }
+        }
+    }
+
+    /** Entries posted by an invoice, bill or payment change only through that document. */
+    private function assertNotDocument(JournalEntry $entry): void
+    {
+        if ($entry->source_type !== null) {
+            $label = str_replace('_', ' ', $entry->source_type);
+            throw new DomainRuleException("This entry was posted by a {$label}. Void the {$label} instead.");
         }
     }
 

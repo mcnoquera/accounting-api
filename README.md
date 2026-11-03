@@ -88,6 +88,11 @@ free Postgres databases expire after 30 days unless upgraded.
   - **Reverse** posts a new entry on a date you choose (on or after the original) that swaps every debit and credit. Both stay in the ledger and net to zero, which keeps a closed period's figures intact. The pair links both ways (`reversal_of` / `reversed_by`); an entry can be reversed once, a reversal can't be reversed, and neither side of a pair can be voided.
 - Money is stored as integer cents and parsed from strings, so there is no floating-point drift.
 
+**Sales invoices**
+- Drafts are editable: customer, dates (due date defaults to the customer's terms), reference, notes, and lines with description, quantity (up to 3 decimals), unit price, revenue account and VAT code. Amounts use integer maths, rounded half up.
+- **Issue** numbers the invoice (`SI-000001`, gap-free) and posts an ordinary journal entry through the normal rules (period lock, tax check, customer on the control account): Dr receivable for the total, Cr revenue per account and VAT code, Cr Output VAT. The entry is linked to the invoice and can only be undone by **voiding** the invoice (unpaid only), which reverses it on the invoice date or the first open date.
+- **PDF** for customers: seller's registered name, TIN (VAT/Non-VAT), address; invoice number and dates; buyer's name, address and TIN; lines; VATable / zero-rated / exempt sales, VAT and total, or the non-VAT notice. Printing is audited. *System-generated invoices generally require the system to be registered with the BIR; confirm with your accountant.*
+
 **Customers and suppliers (subsidiary ledgers)**
 - Contacts: name, type (customer / supplier / both), TIN (normalised like the company TIN), address, email, phone, payment terms in days (default 30), active flag. Audited; a contact used on entries can't be deleted, only deactivated.
 - Accounts can be a `control_type` `receivable` (asset) or `payable` (liability) control account; the Philippine starter chart tags 1210 and 2110. Every line on a control account must name an active customer (receivable) or supplier (payable). Other lines may name a contact too, e.g. the payee of a cash expense.
@@ -150,6 +155,10 @@ amounts in requests are decimal strings like `"1250.50"`.
 | POST | `/accounts/load-defaults` | Philippine starter chart, empty chart only |
 | GET/PUT/DELETE | `/accounts/{id}` | |
 | GET | `/accounts/{id}/ledger` | `?from&to` |
+| GET/POST | `/sales-invoices` | `?status=draft\|open\|overdue\|paid\|voided&contact_id&from&to&q`; POST creates a draft |
+| GET/PUT/DELETE | `/sales-invoices/{id}` | PUT/DELETE drafts only |
+| POST | `/sales-invoices/{id}/issue` · `/void` | void takes `{reason}` |
+| GET | `/sales-invoices/{id}/pdf` | customer-facing PDF (audited) |
 | GET/POST | `/contacts` | `?type=customer\|supplier&active&q`; POST admin/accountant |
 | GET/PUT/DELETE | `/contacts/{id}` | DELETE only if unused |
 | GET | `/contacts/{id}/ledger` | `?type=receivable\|payable&from&to` |
