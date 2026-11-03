@@ -68,7 +68,8 @@ class ReportService
 
     public function incomeStatement(?string $from = null, ?string $to = null): array
     {
-        $totals = $this->ledger->accountTotals($from, $to);
+        // Year-end closing entries are left out, so a closed year still shows its profit.
+        $totals = $this->ledger->accountTotals($from, $to, excludeClosing: true);
         $revenue = $this->section($totals, AccountType::Revenue);
         $expenses = $this->section($totals, AccountType::Expense);
 

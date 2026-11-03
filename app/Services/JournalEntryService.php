@@ -103,6 +103,7 @@ class JournalEntryService
     public function void(JournalEntry $entry, User $voider, string $reason): JournalEntry
     {
         $this->assertStatus($entry, EntryStatus::Posted, 'Only posted entries can be voided.');
+        $this->assertNotClosing($entry);
         if ($entry->reversal_of_id !== null || $entry->reversedBy()->exists()) {
             throw new DomainRuleException('This entry is part of a reversal and cannot be voided. The reversal already cancels its effect.');
         }
@@ -132,6 +133,7 @@ class JournalEntryService
             $date ??= max(array_filter([now()->toDateString(), $this->periods->firstOpenDate(), $entry->entry_date->format('Y-m-d')]));
 
             $this->assertStatus($entry, EntryStatus::Posted, 'Only posted entries can be reversed.');
+            $this->assertNotClosing($entry);
             if ($entry->reversal_of_id !== null) {
                 throw new DomainRuleException('A reversing entry cannot itself be reversed.');
             }
@@ -388,6 +390,13 @@ class JournalEntryService
                     $actual === 0 ? 'none' : number_format(abs($actual) / 100, 2).' '.($actual > 0 ? 'debit' : 'credit'),
                 ), ['lines' => ["Add a {$side} line to an account tagged \"{$role->label()}\" for ".number_format(abs($amount) / 100, 2).'.']]);
             }
+        }
+    }
+
+    private function assertNotClosing(JournalEntry $entry): void
+    {
+        if ($entry->is_closing) {
+            throw new DomainRuleException('Year-end closing entries are managed by the year-end close. Reopen the year\'s last period to undo it.');
         }
     }
 

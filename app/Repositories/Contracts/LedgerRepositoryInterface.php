@@ -11,7 +11,7 @@ interface LedgerRepositoryInterface
      *
      * @return Collection<int, object{account_id:int, code:string, name:string, type:string, debit:int, credit:int}>
      */
-    public function accountTotals(?string $from = null, ?string $to = null): Collection;
+    public function accountTotals(?string $from = null, ?string $to = null, bool $excludeClosing = false): Collection;
 
     /**
      * Posted lines for one account, oldest first.

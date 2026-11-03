@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\ContactController;
 use App\Http\Controllers\Api\V1\ExportController;
+use App\Http\Controllers\Api\V1\FiscalYearController;
 use App\Http\Controllers\Api\V1\JournalEntryController;
 use App\Http\Controllers\Api\V1\PeriodController;
 use App\Http\Controllers\Api\V1\ReportController;
@@ -44,6 +45,9 @@ Route::prefix('v1')->group(function () {
         Route::post('journal-entries/{journalEntry}/post', [JournalEntryController::class, 'post']);
         Route::post('journal-entries/{journalEntry}/void', [JournalEntryController::class, 'void']);
         Route::post('journal-entries/{journalEntry}/reverse', [JournalEntryController::class, 'reverse']);
+
+        Route::get('fiscal-years', [FiscalYearController::class, 'index']);
+        Route::post('fiscal-years/{year}/close', [FiscalYearController::class, 'close'])->whereNumber('year');
 
         Route::get('periods', [PeriodController::class, 'index']);
         Route::post('periods/{period}/close', [PeriodController::class, 'close'])->where('period', '\d{4}-(0[1-9]|1[0-2])');
