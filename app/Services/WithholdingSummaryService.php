@@ -6,6 +6,7 @@ use App\Enums\AccountType;
 use App\Enums\EntryStatus;
 use App\Enums\TaxRole;
 use App\Models\JournalEntry;
+use App\Models\Payment;
 use Carbon\CarbonImmutable;
 
 /**
@@ -45,7 +46,8 @@ class WithholdingSummaryService
 
         foreach ($entries as $entry) {
             $month = $entry->entry_date->format('Y-m');
-            $coded = $entry->lines->contains(fn ($l) => $l->ewt_code_id !== null);
+            // Receipts carry the customer's withholding on the receipt itself, not as a code on a line.
+            $coded = $entry->lines->contains(fn ($l) => $l->ewt_code_id !== null) || $entry->source_type === 'payment';
             $entryContacts = $entry->lines->pluck('contact')->filter()->unique('id');
 
             foreach ($entry->lines as $line) {
@@ -103,6 +105,21 @@ class WithholdingSummaryService
                 $payees[$key]['base'] += $base;
                 $payees[$key]['tax'] += $tax;
             }
+        }
+
+        // Creditable withholding customers deducted when paying us (receipts with a Form 2307).
+        $receipts = Payment::query()->with(['contact', 'ewtCode'])
+            ->where('direction', Payment::RECEIPT)->where('status', 'posted')->where('withholding_amount', '>', 0)
+            ->whereBetween('payment_date', [$from->toDateString(), $to->toDateString()])
+            ->get();
+        foreach ($receipts as $p) {
+            $key = $p->contact_id.'|'.$p->ewtCode->code;
+            $received[$key] ??= [
+                'contact_id' => $p->contact_id, 'name' => $p->contact->name, 'tin' => $p->contact->tin,
+                'atc' => $p->ewtCode->code, 'description' => $p->ewtCode->name, 'rate' => $p->ewtCode->rate, 'base' => 0, 'tax' => 0,
+            ];
+            $received[$key]['base'] += $p->withholding_base;
+            $received[$key]['tax'] += $p->withholding_amount;
         }
 
         ksort($withheld);

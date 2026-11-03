@@ -15,7 +15,7 @@ class Account extends Model
 {
     use HasFactory, RecordsAudit;
 
-    protected $fillable = ['code', 'name', 'type', 'parent_id', 'tax_role', 'control_type', 'description', 'is_active'];
+    protected $fillable = ['code', 'name', 'type', 'parent_id', 'tax_role', 'control_type', 'is_cash', 'description', 'is_active'];
 
     protected $appends = ['normal_balance'];
 
@@ -25,6 +25,7 @@ class Account extends Model
             'type' => AccountType::class,
             'tax_role' => TaxRole::class,
             'control_type' => ControlType::class,
+            'is_cash' => 'boolean',
             'parent_id' => 'integer',
             'is_active' => 'boolean',
         ];
