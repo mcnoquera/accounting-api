@@ -55,6 +55,11 @@ free Postgres databases expire after 30 days unless upgraded.
   - **Reverse** posts a new entry on a date you choose (on or after the original) that swaps every debit and credit. Both stay in the ledger and net to zero, which keeps a closed period's figures intact. The pair links both ways (`reversal_of` / `reversed_by`); an entry can be reversed once, a reversal can't be reversed, and neither side of a pair can be voided.
 - Money is stored as integer cents and parsed from strings, so there is no floating-point drift.
 
+**Tax codes (VAT and withholding)**
+- Seeded codes: `VAT12` (vatable 12%), `VAT0` (zero-rated), `VATEX` (exempt) and common EWT ATCs (`WC158`/`WI158` 1% goods, `WC160`/`WI160` 2% services, `WI010` 5% and `WC010` 10% professional fees). **Confirm the codes and rates with your accountant.** Admins add, rename and deactivate codes; a code's kind, rate and category are locked once it's used on an entry.
+- Accounts can carry a `tax_role`: `input_vat`, `output_vat`, `ewt_payable` (tax we withheld) or `cwt_receivable` (tax customers withheld, Form 2307). The Philippine starter chart tags 1420, 2210, 2230 and 1430.
+- A journal line can carry a `vat_code_id` and an `ewt_code_id`. They go on the **base line** (the sale or purchase), whose amount is the tax base. Saving and posting check that each tax role on the entry holds base × rate (±₱1): VAT on the same side as the base line, withholding on the other side. Revenue lines are sales, everything else purchases, so returns and reversals check out too. Zero-rated and exempt codes need no tax line. A company that isn't VAT-registered can't charge output VAT.
+
 **Reports** (posted entries only): trial balance, balance sheet (with current-period earnings rolled into equity), income statement, and per-account general ledger with running balance.
 
 **Audit**
@@ -90,7 +95,9 @@ amounts in requests are decimal strings like `"1250.50"`.
 | POST | `/accounts/load-defaults` | Philippine starter chart, empty chart only |
 | GET/PUT/DELETE | `/accounts/{id}` | |
 | GET | `/accounts/{id}/ledger` | `?from&to` |
-| GET/POST | `/journal-entries` | `?status&from&to&q&account_id&per_page&page` |
+| GET/POST | `/tax-codes` | `?kind=vat\|ewt&active=1`; POST admin: `{code, name, kind, rate, vat_category?}` |
+| PUT | `/tax-codes/{id}` | admin; rate/kind/category locked once used |
+| GET/POST | `/journal-entries` | `?status&from&to&q&account_id&per_page&page`; lines take `vat_code_id`, `ewt_code_id` |
 | GET/PUT/DELETE | `/journal-entries/{id}` | PUT/DELETE drafts only |
 | POST | `/journal-entries/{id}/post` | |
 | POST | `/journal-entries/{id}/void` | `{reason}` |

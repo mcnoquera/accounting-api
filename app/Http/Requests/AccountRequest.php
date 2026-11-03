@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\AccountType;
+use App\Enums\TaxRole;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,6 +19,7 @@ class AccountRequest extends FormRequest
             'name' => [$required, 'string', 'max:255'],
             'type' => [$required, Rule::enum(AccountType::class)],
             'parent_id' => ['nullable', 'integer', Rule::exists('accounts', 'id')],
+            'tax_role' => ['nullable', Rule::enum(TaxRole::class)],
             'description' => ['nullable', 'string', 'max:2000'],
             'is_active' => ['sometimes', 'boolean'],
         ];

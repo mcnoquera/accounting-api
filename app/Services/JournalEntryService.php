@@ -2,13 +2,20 @@
 
 namespace App\Services;
 
+use App\Enums\AccountType;
 use App\Enums\EntryStatus;
+use App\Enums\TaxKind;
+use App\Enums\TaxRole;
 use App\Exceptions\DomainRuleException;
+use App\Models\Account;
+use App\Models\Company;
 use App\Models\JournalEntry;
+use App\Models\TaxCode;
 use App\Models\User;
 use App\Repositories\Contracts\AccountRepositoryInterface;
 use App\Repositories\Contracts\JournalEntryRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class JournalEntryService
@@ -68,6 +75,7 @@ class JournalEntryService
         $this->assertStatus($entry, EntryStatus::Draft, 'Only draft entries can be posted.');
         $lines = $entry->lines->map(fn ($l) => [
             'account_id' => $l->account_id, 'debit' => $l->debit, 'credit' => $l->credit, 'memo' => $l->memo,
+            'vat_code_id' => $l->vat_code_id, 'ewt_code_id' => $l->ewt_code_id,
         ])->all();
         $this->assertLinesValid($lines);
 
@@ -126,6 +134,8 @@ class JournalEntryService
                 'debit' => $l->credit,
                 'credit' => $l->debit,
                 'memo' => $l->memo,
+                'vat_code_id' => $l->vat_code_id,
+                'ewt_code_id' => $l->ewt_code_id,
             ])->all();
 
             return $this->entries->create([
@@ -145,7 +155,7 @@ class JournalEntryService
     /**
      * Converts decimal amounts (e.g. "1250.50") into integer cents and drops empty lines.
      *
-     * @return list<array{account_id:int, debit:int, credit:int, memo:?string}>
+     * @return list<array{account_id:int, debit:int, credit:int, memo:?string, vat_code_id:?int, ewt_code_id:?int}>
      */
     public function normalizeLines(array $lines): array
     {
@@ -161,10 +171,17 @@ class JournalEntryService
                 'debit' => $debit,
                 'credit' => $credit,
                 'memo' => $line['memo'] ?? null,
+                'vat_code_id' => self::optionalId($line['vat_code_id'] ?? null),
+                'ewt_code_id' => self::optionalId($line['ewt_code_id'] ?? null),
             ];
         }
 
         return $normalized;
+    }
+
+    private static function optionalId(mixed $id): ?int
+    {
+        return $id === null || $id === '' ? null : (int) $id;
     }
 
     /** Parses a decimal amount ("1250.5", 1250.50, "0") into integer cents without float math. */
@@ -181,7 +198,7 @@ class JournalEntryService
         return (int) $m[1] * 100 + (int) str_pad($m[2] ?? '0', 2, '0');
     }
 
-    /** @param list<array{account_id:int, debit:int, credit:int, memo:?string}> $lines */
+    /** @param list<array{account_id:int, debit:int, credit:int, memo:?string, vat_code_id?:?int, ewt_code_id?:?int}> $lines */
     private function assertLinesValid(array $lines): void
     {
         if (count($lines) < 2) {
@@ -220,6 +237,101 @@ class JournalEntryService
             throw new DomainRuleException("Group accounts can't be used on entries: {$codes}.", [
                 'lines' => ['Choose a detail account instead of a group account.'],
             ]);
+        }
+
+        $this->assertTaxValid($lines, $found);
+    }
+
+    /** Allowed difference per tax account role, for rounding line by line. */
+    private const TAX_TOLERANCE = 100;
+
+    /**
+     * A tax code tags a base line (the sale or purchase); its amount is the tax base. Every
+     * tax account role touched by a non-zero rate must carry base × rate (±₱1) on the right
+     * side: VAT on the base line's side, withholding on the other. Revenue lines are sales,
+     * everything else purchases, so returns and reversals check out the same way.
+     *
+     * @param  list<array{account_id:int, debit:int, credit:int, vat_code_id?:?int, ewt_code_id?:?int}>  $lines
+     * @param  Collection<int, Account>  $accounts  keyed by id
+     */
+    private function assertTaxValid(array $lines, Collection $accounts): void
+    {
+        $codeIds = array_values(array_unique(array_filter([...array_column($lines, 'vat_code_id'), ...array_column($lines, 'ewt_code_id')])));
+        if ($codeIds === []) {
+            return;
+        }
+        $codes = TaxCode::query()->findMany($codeIds)->keyBy('id');
+
+        $expected = []; // role => signed amount (debit +, credit -)
+        foreach ($lines as $i => $line) {
+            foreach (['vat_code_id', 'ewt_code_id'] as $field) {
+                $code = isset($line[$field]) ? $codes->get($line[$field]) : null;
+                if ($code) {
+                    $this->addExpectedTax($expected, $code, $line, $accounts->get($line['account_id']), $i);
+                }
+            }
+        }
+
+        $this->assertTaxMatches($expected, $lines, $accounts);
+    }
+
+    /**
+     * Adds the tax a coded base line implies to $expected (role => signed cents, debit +).
+     *
+     * @param  array<string, int>  $expected
+     */
+    private function addExpectedTax(array &$expected, TaxCode $code, array $line, Account $account, int $i): void
+    {
+        if (! $code->is_active) {
+            throw new DomainRuleException("Tax code {$code->code} is inactive.", ["lines.$i" => ['Choose an active tax code.']]);
+        }
+        if ($account->tax_role !== null) {
+            throw new DomainRuleException("Put tax code {$code->code} on the sale or purchase line, not on the tax account {$account->code}.", [
+                "lines.$i" => ['Tax codes go on the base line; this account holds the tax itself.'],
+            ]);
+        }
+
+        $isSale = $account->type === AccountType::Revenue;
+        if ($isSale && $code->kind === TaxKind::Vat && $code->rate_bp > 0 && Company::current()?->vat_registered === false) {
+            throw new DomainRuleException("The company isn't VAT-registered, so it can't charge output VAT ({$code->code}).", [
+                "lines.$i" => ['Use VAT-exempt for sales of a non-VAT business.'],
+            ]);
+        }
+        if ($code->rate_bp === 0) {
+            return;
+        }
+
+        $baseIsDebit = $line['debit'] > 0;
+        $taxIsDebit = $code->kind->sameSideAsBase() ? $baseIsDebit : ! $baseIsDebit;
+        $tax = $code->taxOn($baseIsDebit ? $line['debit'] : $line['credit']);
+        $role = $code->kind->role($isSale)->value;
+        $expected[$role] = ($expected[$role] ?? 0) + ($taxIsDebit ? $tax : -$tax);
+    }
+
+    /**
+     * @param  array<string, int>  $expected
+     * @param  Collection<int, Account>  $accounts
+     */
+    private function assertTaxMatches(array $expected, array $lines, Collection $accounts): void
+    {
+        foreach ($expected as $role => $amount) {
+            $role = TaxRole::from($role);
+            $roleAccounts = $accounts->filter(fn ($a) => $a->tax_role === $role)->keys()->all();
+            $actual = 0;
+            foreach ($lines as $line) {
+                if (in_array($line['account_id'], $roleAccounts, true)) {
+                    $actual += $line['debit'] - $line['credit'];
+                }
+            }
+
+            if (abs($actual - $amount) > self::TAX_TOLERANCE) {
+                $side = $amount >= 0 ? 'debit' : 'credit';
+                throw new DomainRuleException(sprintf(
+                    '%s on this entry should be a %s of %s (from the tax codes), but the entry has %s.',
+                    $role->label(), $side, number_format(abs($amount) / 100, 2),
+                    $actual === 0 ? 'none' : number_format(abs($actual) / 100, 2).' '.($actual > 0 ? 'debit' : 'credit'),
+                ), ['lines' => ["Add a {$side} line to an account tagged \"{$role->label()}\" for ".number_format(abs($amount) / 100, 2).'.']]);
+            }
         }
     }
 
