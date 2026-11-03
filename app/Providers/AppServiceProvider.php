@@ -23,7 +23,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('manage-tax-codes', fn (User $u) => $u->hasRole(Role::Admin));
         Gate::define('manage-books', fn (User $u) => $u->hasRole(Role::Admin, Role::Accountant));
         Gate::define('close-periods', fn (User $u) => $u->hasRole(Role::Admin, Role::Accountant));
-        Gate::define('reopen-periods', fn (User $u) => $u->hasRole(Role::Admin));
+        Gate::define('reopen-periods', fn (User $u) => $u->hasRole(Role::Admin, Role::Accountant));
         Gate::define('view-audit', fn (User $u) => $u->hasRole(Role::Admin, Role::Auditor));
         Gate::define('manage-findings', fn (User $u) => $u->hasRole(Role::Admin, Role::Auditor));
         Gate::define('resolve-findings', fn (User $u) => $u->hasRole(Role::Admin, Role::Auditor, Role::Accountant));
