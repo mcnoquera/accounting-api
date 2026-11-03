@@ -86,6 +86,9 @@ class JournalEntryService
     public function void(JournalEntry $entry, User $voider, string $reason): JournalEntry
     {
         $this->assertStatus($entry, EntryStatus::Posted, 'Only posted entries can be voided.');
+        if ($entry->reversal_of_id !== null || $entry->reversedBy()->exists()) {
+            throw new DomainRuleException('This entry is part of a reversal and cannot be voided. The reversal already cancels its effect.');
+        }
 
         $entry->status = EntryStatus::Voided;
         $entry->voided_by = $voider->id;
@@ -93,6 +96,50 @@ class JournalEntryService
         $entry->void_reason = $reason;
 
         return $this->entries->save($entry);
+    }
+
+    /**
+     * Cancels a posted entry with a new, posted entry that swaps every debit and credit,
+     * dated $date (an open period). The original stays posted, so both appear in the
+     * ledger and net to zero; each entry links to the other.
+     */
+    public function reverse(JournalEntry $entry, User $user, string $date, string $reason): JournalEntry
+    {
+        return DB::transaction(function () use ($entry, $user, $date, $reason) {
+            $entry = JournalEntry::query()->lockForUpdate()->findOrFail($entry->id);
+
+            $this->assertStatus($entry, EntryStatus::Posted, 'Only posted entries can be reversed.');
+            if ($entry->reversal_of_id !== null) {
+                throw new DomainRuleException('A reversing entry cannot itself be reversed.');
+            }
+            if ($entry->reversedBy()->exists()) {
+                throw new DomainRuleException("Entry {$entry->number} has already been reversed.");
+            }
+            if ($date < $entry->entry_date->format('Y-m-d')) {
+                throw new DomainRuleException('The reversal date cannot be before the original entry date.', [
+                    'entry_date' => ['Use a date on or after '.$entry->entry_date->format('Y-m-d').'.'],
+                ]);
+            }
+
+            $lines = $entry->lines->map(fn ($l) => [
+                'account_id' => $l->account_id,
+                'debit' => $l->credit,
+                'credit' => $l->debit,
+                'memo' => $l->memo,
+            ])->all();
+
+            return $this->entries->create([
+                'number' => $this->entries->nextNumber(),
+                'entry_date' => $date,
+                'reference' => $entry->number,
+                'description' => "Reversal of {$entry->number}: {$reason}",
+                'status' => EntryStatus::Posted,
+                'created_by' => $user->id,
+                'posted_by' => $user->id,
+                'posted_at' => now(),
+                'reversal_of_id' => $entry->id,
+            ], $lines);
+        });
     }
 
     /**
@@ -165,6 +212,14 @@ class JournalEntryService
         $missing = array_diff($ids, $found->keys()->all());
         if ($missing !== []) {
             throw new DomainRuleException('Unknown account(s) on entry.', ['lines' => ['One or more accounts do not exist.']]);
+        }
+
+        $groups = $this->accounts->withChildren(array_values($ids));
+        if ($groups !== []) {
+            $codes = $found->only($groups)->pluck('code')->implode(', ');
+            throw new DomainRuleException("Group accounts can't be used on entries: {$codes}.", [
+                'lines' => ['Choose a detail account instead of a group account.'],
+            ]);
         }
     }
 
