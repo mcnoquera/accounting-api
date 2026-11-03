@@ -64,6 +64,31 @@ class TaxCodeTest extends TestCase
         $this->assertCount(3, $this->getJson('/api/v1/tax-codes?kind=vat&active=1')->json('data'));
     }
 
+    public function test_bir_atc_schedule_is_seeded_with_common_codes_active(): void
+    {
+        $this->actingAsRole(Role::Accountant);
+        $all = collect($this->getJson('/api/v1/tax-codes?kind=ewt')->json('data'))->keyBy('code');
+
+        // Spot checks against the BIR 1601-EQ (Jan 2019) schedule.
+        $expect = [
+            'WI010' => ['5.00', true], 'WI011' => ['10.00', true], 'WC010' => ['10.00', true], 'WC011' => ['15.00', true],
+            'WI100' => ['5.00', true], 'WC100' => ['5.00', true], 'WI120' => ['2.00', true], 'WC120' => ['2.00', true],
+            'WC158' => ['1.00', true], 'WC160' => ['2.00', true], 'WC516' => ['15.00', true],
+            'WI151' => ['5.00', false], 'WC150' => ['15.00', false], 'WI153' => ['15.00', false],
+            'WI156' => ['0.50', false], 'WC640' => ['1.00', false], 'WC690' => ['1.00', false], 'WI130' => ['15.00', false],
+        ];
+        foreach ($expect as $code => [$rate, $active]) {
+            $this->assertSame([$rate, $active], [$all[$code]['rate'], $all[$code]['is_active']], $code);
+        }
+        $this->assertCount(84, $all); // 96 on the schedule minus 12 electric-utility codes
+        $this->assertCount(28, $all->where('is_active', true));
+        $this->assertArrayNotHasKey('WI650', $all->all());
+        $this->assertSame(
+            'Professional fees (lawyers, CPAs, engineers, etc.) - corporate, gross income > ₱720K',
+            $all['WC011']['name'],
+        );
+    }
+
     public function test_vatable_sale_with_customer_withholding_posts(): void
     {
         $this->actingAsRole(Role::Accountant);
@@ -207,13 +232,13 @@ class TaxCodeTest extends TestCase
     public function test_admin_manages_codes_and_used_codes_are_locked(): void
     {
         $this->actingAsRole(Role::Accountant);
-        $this->postJson('/api/v1/tax-codes', ['code' => 'WC120', 'name' => 'EWT 2% - contractors', 'kind' => 'ewt', 'rate' => '2'])->assertForbidden();
+        $this->postJson('/api/v1/tax-codes', ['code' => 'XC120', 'name' => 'Custom 2% code', 'kind' => 'ewt', 'rate' => '2'])->assertForbidden();
 
         $this->actingAsRole(Role::Admin);
         $this->chart();
         $this->postJson('/api/v1/tax-codes', ['code' => 'VAT5', 'name' => 'Odd VAT', 'kind' => 'vat', 'rate' => '5'])
             ->assertStatus(422)->assertJsonValidationErrors('vat_category');
-        $new = $this->postJson('/api/v1/tax-codes', ['code' => 'WC120', 'name' => 'EWT 2% - contractors', 'kind' => 'ewt', 'rate' => '2.5', 'vat_category' => 'vatable'])
+        $new = $this->postJson('/api/v1/tax-codes', ['code' => 'XC120', 'name' => 'Custom 2% code', 'kind' => 'ewt', 'rate' => '2.5', 'vat_category' => 'vatable'])
             ->assertCreated()
             ->assertJsonPath('data.rate_bp', 250)
             ->assertJsonPath('data.rate', '2.50')
