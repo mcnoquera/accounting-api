@@ -86,6 +86,11 @@ free Postgres databases expire after 30 days unless upgraded.
   - **Reverse** posts a new entry on a date you choose (on or after the original) that swaps every debit and credit. Both stay in the ledger and net to zero, which keeps a closed period's figures intact. The pair links both ways (`reversal_of` / `reversed_by`); an entry can be reversed once, a reversal can't be reversed, and neither side of a pair can be voided.
 - Money is stored as integer cents and parsed from strings, so there is no floating-point drift.
 
+**Customers and suppliers (subsidiary ledgers)**
+- Contacts: name, type (customer / supplier / both), TIN (normalised like the company TIN), address, email, phone, payment terms in days (default 30), active flag. Audited; a contact used on entries can't be deleted, only deactivated.
+- Accounts can be a `control_type` `receivable` (asset) or `payable` (liability) control account; the Philippine starter chart tags 1210 and 2110. Every line on a control account must name an active customer (receivable) or supplier (payable). Other lines may name a contact too, e.g. the payee of a cash expense.
+- Per-contact ledger with opening and running balance, and receivables/payables **aging** as of a date: current, 1–30, 31–60, 61–90 and over 90 days past due (entry date + payment terms), with payments and credits settling the oldest charges first (no invoice matching). The control accounts' balance is shown next to the contact total, so lines without a contact show up as a difference. Aging exports to CSV and PDF.
+
 **Month-end close**
 - Periods are calendar months, closed strictly in order by an admin or accountant (from the month of the earliest entry, and only once the month has ended). Closing locks every date up to the month's last day.
 - In a closed period you can't create, edit into, post or void entries; correct them with a **reversal** dated in an open period (the default reversal date skips past closed months). Drafts left in a closed month can be deleted or moved to an open date.
@@ -135,6 +140,10 @@ amounts in requests are decimal strings like `"1250.50"`.
 | POST | `/accounts/load-defaults` | Philippine starter chart, empty chart only |
 | GET/PUT/DELETE | `/accounts/{id}` | |
 | GET | `/accounts/{id}/ledger` | `?from&to` |
+| GET/POST | `/contacts` | `?type=customer\|supplier&active&q`; POST admin/accountant |
+| GET/PUT/DELETE | `/contacts/{id}` | DELETE only if unused |
+| GET | `/contacts/{id}/ledger` | `?type=receivable\|payable&from&to` |
+| GET | `/reports/aging` | `?type=receivable\|payable&as_of` |
 | GET/POST | `/tax-codes` | `?kind=vat\|ewt&active=1`; POST admin: `{code, name, kind, rate, vat_category?}` |
 | PUT | `/tax-codes/{id}` | admin; rate/kind/category locked once used |
 | GET/POST | `/journal-entries` | `?status&from&to&q&account_id&per_page&page`; lines take `vat_code_id`, `ewt_code_id` |
@@ -148,7 +157,7 @@ amounts in requests are decimal strings like `"1250.50"`.
 | GET | `/reports/trial-balance` · `/reports/balance-sheet` | `?as_of` |
 | GET | `/reports/income-statement` | `?from&to` |
 | GET | `/reports/vat-summary` | `?year&quarter` (calendar quarter 1–4; default current) |
-| GET | `/reports/{trial-balance\|balance-sheet\|income-statement\|vat-summary}/export` | `?format=csv\|pdf` + the report's filters; file download |
+| GET | `/reports/{trial-balance\|balance-sheet\|income-statement\|vat-summary\|aging}/export` | `?format=csv\|pdf` + the report's filters; file download |
 | GET | `/accounts/{id}/ledger/export` | CSV; `?from&to` |
 | GET | `/audit/logs/export` | CSV, admin/auditor; same filters as `/audit/logs`, latest 50,000 rows |
 | GET | `/audit/logs` | `?action&type&user_id&from&to` |

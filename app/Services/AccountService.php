@@ -84,6 +84,7 @@ class AccountService
                     'type' => $type,
                     'parent_id' => $parent ? $ids[$parent] : null,
                     'tax_role' => DefaultChartOfAccounts::TAX_ROLES[$code] ?? null,
+                    'control_type' => DefaultChartOfAccounts::CONTROL_TYPES[$code] ?? null,
                 ])->id;
             }
 

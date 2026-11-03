@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\AccountType;
+use App\Enums\ControlType;
 use App\Enums\TaxRole;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -20,8 +21,20 @@ class AccountRequest extends FormRequest
             'type' => [$required, Rule::enum(AccountType::class)],
             'parent_id' => ['nullable', 'integer', Rule::exists('accounts', 'id')],
             'tax_role' => ['nullable', Rule::enum(TaxRole::class)],
+            'control_type' => ['nullable', Rule::enum(ControlType::class), function (string $attr, mixed $value, \Closure $fail) {
+                $type = $this->input('type') ?? $this->route('account')?->type?->value;
+                $expected = $value === ControlType::Receivable->value ? 'asset' : 'liability';
+                if ($value !== null && $type !== $expected) {
+                    $fail("A {$value} control account must be a{$this->article($expected)} {$expected} account.");
+                }
+            }],
             'description' => ['nullable', 'string', 'max:2000'],
             'is_active' => ['sometimes', 'boolean'],
         ];
+    }
+
+    private function article(string $word): string
+    {
+        return in_array($word[0], ['a', 'e', 'i', 'o', 'u'], true) ? 'n' : '';
     }
 }

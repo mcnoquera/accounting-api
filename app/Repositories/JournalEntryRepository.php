@@ -11,7 +11,7 @@ use Illuminate\Support\Collection;
 class JournalEntryRepository implements JournalEntryRepositoryInterface
 {
     private const RELATIONS = [
-        'lines.account', 'lines.vatCode', 'lines.ewtCode', 'creator:id,name', 'poster:id,name', 'voider:id,name',
+        'lines.account', 'lines.vatCode', 'lines.ewtCode', 'lines.contact:id,name,type', 'creator:id,name', 'poster:id,name', 'voider:id,name',
         'reversalOf:id,number', 'reversedBy:id,number,reversal_of_id',
     ];
 
