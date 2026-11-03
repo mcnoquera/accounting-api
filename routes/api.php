@@ -7,7 +7,9 @@ use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\ContactController;
 use App\Http\Controllers\Api\V1\ExportController;
 use App\Http\Controllers\Api\V1\FiscalYearController;
+use App\Http\Controllers\Api\V1\ImportController;
 use App\Http\Controllers\Api\V1\JournalEntryController;
+use App\Http\Controllers\Api\V1\OpeningBalanceController;
 use App\Http\Controllers\Api\V1\PaymentController;
 use App\Http\Controllers\Api\V1\PeriodController;
 use App\Http\Controllers\Api\V1\PurchaseBillController;
@@ -61,6 +63,12 @@ Route::prefix('v1')->group(function () {
         Route::post('journal-entries/{journalEntry}/post', [JournalEntryController::class, 'post']);
         Route::post('journal-entries/{journalEntry}/void', [JournalEntryController::class, 'void']);
         Route::post('journal-entries/{journalEntry}/reverse', [JournalEntryController::class, 'reverse']);
+
+        Route::get('imports/{kind}/template', [ImportController::class, 'template'])->whereIn('kind', ['accounts', 'contacts']);
+        Route::post('imports/{kind}/preview', [ImportController::class, 'preview'])->whereIn('kind', ['accounts', 'contacts']);
+        Route::post('imports/{kind}/commit', [ImportController::class, 'commit'])->whereIn('kind', ['accounts', 'contacts']);
+        Route::get('opening-balances', [OpeningBalanceController::class, 'show']);
+        Route::put('opening-balances', [OpeningBalanceController::class, 'save']);
 
         Route::get('fiscal-years', [FiscalYearController::class, 'index']);
         Route::post('fiscal-years/{year}/close', [FiscalYearController::class, 'close'])->whereNumber('year');

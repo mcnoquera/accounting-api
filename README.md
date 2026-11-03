@@ -104,6 +104,10 @@ free Postgres databases expire after 30 days unless upgraded.
 - Allocations can't exceed a document's balance or the payment; anything left stays as an **unapplied** credit on the contact and can be allocated later. Invoices and bills show amount paid, balance due and `partially_paid` / `paid`. Voiding a payment reverses its entry and reopens what it paid; paid documents can't be voided.
 - **Aging is exact for documents**: invoices and bills age from their own due dates and balances (payments dated up to the as-of date), unapplied payments show as current credits; only hand-made control-account lines use the oldest-first approximation.
 
+**Moving onto Ledgerly: import and opening balances**
+- **CSV import** of the chart of accounts (matched on code) and contacts (matched on TIN, else exact name), from downloadable templates. *Preview* shows each row as create / update / unchanged / error with line-specific messages and writes nothing; *commit* re-checks and writes all rows or none. Parents can appear anywhere in the file; accounts with entries can't change type.
+- **Opening balances** for a cut-over date (the 1st of your first month): account balances plus opening invoices and bills per customer and supplier (original number, date, due date, amount still owed), so aging and payments work from day one. One system entry dated the day before cut-over carries everything; the difference goes to Opening Balance Equity (3900, created if missing). Every month before cut-over is closed. Replaceable with the same cut-over until an opening document is paid or the cut-over month is closed. Not allowed once there are entries dated before cut-over.
+
 **Customers and suppliers (subsidiary ledgers)**
 - Contacts: name, type (customer / supplier / both), TIN (normalised like the company TIN), address, email, phone, payment terms in days (default 30), active flag. Audited; a contact used on entries can't be deleted, only deactivated.
 - Accounts can be a `control_type` `receivable` (asset) or `payable` (liability) control account; the Philippine starter chart tags 1210 and 2110. Every line on a control account must name an active customer (receivable) or supplier (payable). Other lines may name a contact too, e.g. the payee of a cash expense.
@@ -176,6 +180,9 @@ amounts in requests are decimal strings like `"1250.50"`.
 | GET/POST | `/payments` | `?direction=receipt\|payment&contact_id&from&to&q&unapplied=1`; POST `{direction, contact_id, payment_date, cash_account_id, amount, ewt_code_id?, withholding_base?, withholding_amount?, reference?, allocations: [{document_id, amount}]}` |
 | GET | `/payments/{id}` | with allocations |
 | POST | `/payments/{id}/allocate` · `/void` | allocate unapplied `{allocations}`; void `{reason}` |
+| GET | `/imports/{accounts\|contacts}/template` | CSV template |
+| POST | `/imports/{accounts\|contacts}/preview` · `/commit` | `{csv}` |
+| GET/PUT | `/opening-balances` | PUT `{cutover_date, equity_account_id?, lines: [{account_id, debit\|credit}], receivables: [{contact_id, number, date, due_date?, amount}], payables: [...]}` |
 | GET/POST | `/contacts` | `?type=customer\|supplier&active&q`; POST admin/accountant |
 | GET/PUT/DELETE | `/contacts/{id}` | DELETE only if unused |
 | GET | `/contacts/{id}/ledger` | `?type=receivable\|payable&from&to` |
