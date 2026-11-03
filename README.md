@@ -96,6 +96,10 @@ free Postgres databases expire after 30 days unless upgraded.
 - In a closed period you can't create, edit into, post or void entries; correct them with a **reversal** dated in an open period (the default reversal date skips past closed months). Drafts left in a closed month can be deleted or moved to an open date.
 - An admin or accountant can reopen, only the most recent closed period, and only with a reason. Closing reports how many drafts are still dated in the month. Close and reopen are in the audit trail.
 
+**Year-end close**
+- Fiscal years follow the company's `fiscal_year_start_month` and are named by the calendar year they start in. Once every month of a year is closed (and earlier years with entries are closed), an admin or accountant closes it into a chosen equity account: a posted, system-marked closing entry dated the year's last day zeroes each revenue and expense account into retained earnings.
+- The income statement leaves closing entries out, so a closed year still shows its profit and the next year starts at zero; balance sheet totals don't change. Closing entries can't be voided or reversed by hand: reopening the year's last month reverses the closing entry automatically and reopens the year. Closes are audited.
+
 **Tax codes (VAT and withholding)**
 - Seeded codes: `VAT12` (vatable 12%), `VAT0` (zero-rated), `VATEX` (exempt), and the BIR expanded-withholding ATC schedule from Form 1601-EQ (January 2019; RR 2-98 as amended by RR 11-2018): 84 codes, all except the electric-utility meter-deposit codes (WI/WC650–663). The 28 most businesses use start active (professional fees, consultants, bookkeeping agents, rent, contractors, brokers, sales agents, top withholding agent goods/services); specialised ones start inactive. **Confirm with your accountant, and check later BIR issuances for new codes or rate changes.** Admins add, rename and deactivate codes; a code's kind, rate and category are locked once it's used on an entry.
 - Accounts can carry a `tax_role`: `input_vat`, `output_vat`, `ewt_payable` (tax we withheld) or `cwt_receivable` (tax customers withheld, Form 2307). The Philippine starter chart tags 1420, 2210, 2230 and 1430.
@@ -154,6 +158,8 @@ amounts in requests are decimal strings like `"1250.50"`.
 | POST | `/journal-entries/{id}/post` | |
 | POST | `/journal-entries/{id}/void` | `{reason}` |
 | POST | `/journal-entries/{id}/reverse` | `{reason, entry_date?}` → the new reversing entry (201) |
+| GET | `/fiscal-years` | each year with status, net income, closing entry, `can_close` |
+| POST | `/fiscal-years/{year}/close` | admin/accountant; `{retained_earnings_account_id}` |
 | GET | `/periods` | months with status and counts; `meta.locked_through`, `first_open_date`, `next_to_close` |
 | POST | `/periods/{YYYY-MM}/close` | admin/accountant; `meta.draft_count` |
 | POST | `/periods/{YYYY-MM}/reopen` | admin; `{reason}`, latest closed period only |
