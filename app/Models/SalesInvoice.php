@@ -13,7 +13,7 @@ class SalesInvoice extends Model
     use RecordsAudit;
 
     protected $fillable = [
-        'number', 'contact_id', 'invoice_date', 'due_date', 'reference', 'notes', 'status',
+        'number', 'contact_id', 'invoice_date', 'due_date', 'reference', 'notes', 'status', 'is_opening',
         'net_amount', 'vat_amount', 'total_amount', 'amount_paid', 'journal_entry_id',
         'created_by', 'issued_by', 'issued_at', 'voided_by', 'voided_at', 'void_reason',
     ];
@@ -26,6 +26,7 @@ class SalesInvoice extends Model
             'invoice_date' => 'date:Y-m-d',
             'due_date' => 'date:Y-m-d',
             'status' => InvoiceStatus::class,
+            'is_opening' => 'boolean',
             'net_amount' => 'integer',
             'vat_amount' => 'integer',
             'total_amount' => 'integer',

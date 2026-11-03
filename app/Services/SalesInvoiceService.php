@@ -130,6 +130,9 @@ class SalesInvoiceService
     {
         return DB::transaction(function () use ($invoice, $user, $reason) {
             $invoice = SalesInvoice::query()->lockForUpdate()->findOrFail($invoice->id);
+            if ($invoice->is_opening) {
+                throw new DomainRuleException('Opening invoices change only by replacing the opening balances.');
+            }
             if ($invoice->status !== InvoiceStatus::Issued || $invoice->amount_paid > 0) {
                 throw new DomainRuleException('Only issued invoices with no payments can be voided.');
             }

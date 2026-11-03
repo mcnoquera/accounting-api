@@ -14,7 +14,7 @@ class PurchaseBill extends Model
     use RecordsAudit;
 
     protected $fillable = [
-        'number', 'contact_id', 'supplier_invoice_number', 'bill_date', 'due_date', 'notes', 'status',
+        'number', 'contact_id', 'supplier_invoice_number', 'bill_date', 'due_date', 'notes', 'status', 'is_opening',
         'net_amount', 'vat_amount', 'ewt_amount', 'total_amount', 'amount_due', 'amount_paid', 'journal_entry_id',
         'created_by', 'issued_by', 'issued_at', 'voided_by', 'voided_at', 'void_reason',
     ];
@@ -27,6 +27,7 @@ class PurchaseBill extends Model
             'bill_date' => 'date:Y-m-d',
             'due_date' => 'date:Y-m-d',
             'status' => InvoiceStatus::class,
+            'is_opening' => 'boolean',
             'net_amount' => 'integer',
             'vat_amount' => 'integer',
             'ewt_amount' => 'integer',

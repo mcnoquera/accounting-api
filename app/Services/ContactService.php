@@ -25,7 +25,8 @@ class ContactService
 {
     public const BUCKETS = ['current', 'days_1_30', 'days_31_60', 'days_61_90', 'over_90'];
 
-    private const DOCUMENT_SOURCES = ['sales_invoice', 'purchase_bill', 'payment'];
+    // Control lines from these entries are represented by documents (opening balances by opening invoices/bills).
+    private const DOCUMENT_SOURCES = ['sales_invoice', 'purchase_bill', 'payment', 'opening_balance'];
 
     public function delete(Contact $contact): void
     {
