@@ -86,10 +86,19 @@ free Postgres databases expire after 30 days unless upgraded.
   - **Reverse** posts a new entry on a date you choose (on or after the original) that swaps every debit and credit. Both stay in the ledger and net to zero, which keeps a closed period's figures intact. The pair links both ways (`reversal_of` / `reversed_by`); an entry can be reversed once, a reversal can't be reversed, and neither side of a pair can be voided.
 - Money is stored as integer cents and parsed from strings, so there is no floating-point drift.
 
+**Customers and suppliers (subsidiary ledgers)**
+- Contacts: name, type (customer / supplier / both), TIN (normalised like the company TIN), address, email, phone, payment terms in days (default 30), active flag. Audited; a contact used on entries can't be deleted, only deactivated.
+- Accounts can be a `control_type` `receivable` (asset) or `payable` (liability) control account; the Philippine starter chart tags 1210 and 2110. Every line on a control account must name an active customer (receivable) or supplier (payable). Other lines may name a contact too, e.g. the payee of a cash expense.
+- Per-contact ledger with opening and running balance, and receivables/payables **aging** as of a date: current, 1–30, 31–60, 61–90 and over 90 days past due (entry date + payment terms), with payments and credits settling the oldest charges first (no invoice matching). The control accounts' balance is shown next to the contact total, so lines without a contact show up as a difference. Aging exports to CSV and PDF.
+
 **Month-end close**
 - Periods are calendar months, closed strictly in order by an admin or accountant (from the month of the earliest entry, and only once the month has ended). Closing locks every date up to the month's last day.
 - In a closed period you can't create, edit into, post or void entries; correct them with a **reversal** dated in an open period (the default reversal date skips past closed months). Drafts left in a closed month can be deleted or moved to an open date.
 - An admin or accountant can reopen, only the most recent closed period, and only with a reason. Closing reports how many drafts are still dated in the month. Close and reopen are in the audit trail.
+
+**Year-end close**
+- Fiscal years follow the company's `fiscal_year_start_month` and are named by the calendar year they start in. Once every month of a year is closed (and earlier years with entries are closed), an admin or accountant closes it into a chosen equity account: a posted, system-marked closing entry dated the year's last day zeroes each revenue and expense account into retained earnings.
+- The income statement leaves closing entries out, so a closed year still shows its profit and the next year starts at zero; balance sheet totals don't change. Closing entries can't be voided or reversed by hand: reopening the year's last month reverses the closing entry automatically and reopens the year. Closes are audited.
 
 **Tax codes (VAT and withholding)**
 - Seeded codes: `VAT12` (vatable 12%), `VAT0` (zero-rated), `VATEX` (exempt), and the BIR expanded-withholding ATC schedule from Form 1601-EQ (January 2019; RR 2-98 as amended by RR 11-2018): 84 codes, all except the electric-utility meter-deposit codes (WI/WC650–663). The 28 most businesses use start active (professional fees, consultants, bookkeeping agents, rent, contractors, brokers, sales agents, top withholding agent goods/services); specialised ones start inactive. **Confirm with your accountant, and check later BIR issuances for new codes or rate changes.** Admins add, rename and deactivate codes; a code's kind, rate and category are locked once it's used on an entry.
@@ -97,6 +106,10 @@ free Postgres databases expire after 30 days unless upgraded.
 - A journal line can carry a `vat_code_id` and an `ewt_code_id`. They go on the **base line** (the sale or purchase), whose amount is the tax base. Saving and posting check that each tax role on the entry holds base × rate (±₱1): VAT on the same side as the base line, withholding on the other side. Revenue lines are sales, everything else purchases, so returns and reversals check out too. Zero-rated and exempt codes need no tax line. A company that isn't VAT-registered can't charge output VAT.
 
 **VAT summary** (supports BIR Form 2550Q): for a calendar quarter, vatable / zero-rated / exempt sales and purchases from the VAT codes on base lines (sales returns and reversals reduce them), output and input VAT from the VAT-account lines of those coded entries, and net VAT payable (negative = excess input VAT), by month and for the quarter. It also shows VAT computed from the codes next to VAT booked, and lists VAT-account activity in entries without a VAT code (quarter-end settlements, or sales/purchases missing their code) separately.
+
+**Percentage tax summary** (supports BIR Form 2551Q, non-VAT businesses): for a calendar quarter, gross sales/receipts from revenue lines (returns and reversals reduce them; year-end closing entries are excluded), less VAT-exempt (VATEX) sales, times the company's `percentage_tax_rate_bp` (default 3%, set on the company profile as `percentage_tax_rate`), by month and for the quarter, rounded half up. Exports to CSV/PDF.
+
+**Withholding tax summary** (supports BIR Forms 0619-E, 1601-EQ and the QAP): for a calendar quarter, tax withheld from suppliers by ATC and month (base = the amount of the line carrying the ATC; returns and reversals reduce it), the payee list by supplier and ATC with TIN, and tax customers withheld from us (Forms 2307) by customer. The payee is the contact on the coded line, or the only contact elsewhere on the entry (e.g. the payable line). Withholding accounts' activity on coded entries is shown for reconciliation; uncoded activity (remittances, 2307 applications) is listed separately. Exports: summary (CSV/PDF) and payee list (CSV).
 
 **Exports**: CSV for every report, the general ledger and the audit trail; PDF (via dompdf) for the trial balance, balance sheet, income statement and VAT summary, with the company's registered name, TIN, RDO, address and VAT status in the header and "Prepared by … on …" in the footer. CSV and PDF are built from the same table, amounts are pesos with 2 decimals, CSV text that looks like a spreadsheet formula is prefixed with `'`, and every export is written to the audit trail (`exported`, with the report, format and filters).
 
@@ -135,6 +148,12 @@ amounts in requests are decimal strings like `"1250.50"`.
 | POST | `/accounts/load-defaults` | Philippine starter chart, empty chart only |
 | GET/PUT/DELETE | `/accounts/{id}` | |
 | GET | `/accounts/{id}/ledger` | `?from&to` |
+| GET/POST | `/contacts` | `?type=customer\|supplier&active&q`; POST admin/accountant |
+| GET/PUT/DELETE | `/contacts/{id}` | DELETE only if unused |
+| GET | `/contacts/{id}/ledger` | `?type=receivable\|payable&from&to` |
+| GET | `/reports/percentage-tax` | `?year&quarter` (calendar quarter; default current) |
+| GET | `/reports/withholding` | `?year&quarter` (calendar quarter; default current) |
+| GET | `/reports/aging` | `?type=receivable\|payable&as_of` |
 | GET/POST | `/tax-codes` | `?kind=vat\|ewt&active=1`; POST admin: `{code, name, kind, rate, vat_category?}` |
 | PUT | `/tax-codes/{id}` | admin; rate/kind/category locked once used |
 | GET/POST | `/journal-entries` | `?status&from&to&q&account_id&per_page&page`; lines take `vat_code_id`, `ewt_code_id` |
@@ -142,13 +161,15 @@ amounts in requests are decimal strings like `"1250.50"`.
 | POST | `/journal-entries/{id}/post` | |
 | POST | `/journal-entries/{id}/void` | `{reason}` |
 | POST | `/journal-entries/{id}/reverse` | `{reason, entry_date?}` → the new reversing entry (201) |
+| GET | `/fiscal-years` | each year with status, net income, closing entry, `can_close` |
+| POST | `/fiscal-years/{year}/close` | admin/accountant; `{retained_earnings_account_id}` |
 | GET | `/periods` | months with status and counts; `meta.locked_through`, `first_open_date`, `next_to_close` |
 | POST | `/periods/{YYYY-MM}/close` | admin/accountant; `meta.draft_count` |
 | POST | `/periods/{YYYY-MM}/reopen` | admin; `{reason}`, latest closed period only |
 | GET | `/reports/trial-balance` · `/reports/balance-sheet` | `?as_of` |
 | GET | `/reports/income-statement` | `?from&to` |
 | GET | `/reports/vat-summary` | `?year&quarter` (calendar quarter 1–4; default current) |
-| GET | `/reports/{trial-balance\|balance-sheet\|income-statement\|vat-summary}/export` | `?format=csv\|pdf` + the report's filters; file download |
+| GET | `/reports/{trial-balance\|balance-sheet\|income-statement\|vat-summary\|aging\|withholding\|withholding-payees\|percentage-tax}/export` | `?format=csv\|pdf` + the report's filters; file download |
 | GET | `/accounts/{id}/ledger/export` | CSV; `?from&to` |
 | GET | `/audit/logs/export` | CSV, admin/auditor; same filters as `/audit/logs`, latest 50,000 rows |
 | GET | `/audit/logs` | `?action&type&user_id&from&to` |

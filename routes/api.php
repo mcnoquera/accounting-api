@@ -4,7 +4,9 @@ use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\AuditController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CompanyController;
+use App\Http\Controllers\Api\V1\ContactController;
 use App\Http\Controllers\Api\V1\ExportController;
+use App\Http\Controllers\Api\V1\FiscalYearController;
 use App\Http\Controllers\Api\V1\JournalEntryController;
 use App\Http\Controllers\Api\V1\PeriodController;
 use App\Http\Controllers\Api\V1\ReportController;
@@ -32,6 +34,9 @@ Route::prefix('v1')->group(function () {
         Route::get('accounts/{account}/ledger', [AccountController::class, 'ledger']);
         Route::get('accounts/{account}/ledger/export', [ExportController::class, 'ledger']);
 
+        Route::apiResource('contacts', ContactController::class);
+        Route::get('contacts/{contact}/ledger', [ContactController::class, 'ledger']);
+
         Route::apiResource('tax-codes', TaxCodeController::class)->only(['index', 'store', 'update'])
             ->parameters(['tax-codes' => 'taxCode']);
 
@@ -40,6 +45,9 @@ Route::prefix('v1')->group(function () {
         Route::post('journal-entries/{journalEntry}/post', [JournalEntryController::class, 'post']);
         Route::post('journal-entries/{journalEntry}/void', [JournalEntryController::class, 'void']);
         Route::post('journal-entries/{journalEntry}/reverse', [JournalEntryController::class, 'reverse']);
+
+        Route::get('fiscal-years', [FiscalYearController::class, 'index']);
+        Route::post('fiscal-years/{year}/close', [FiscalYearController::class, 'close'])->whereNumber('year');
 
         Route::get('periods', [PeriodController::class, 'index']);
         Route::post('periods/{period}/close', [PeriodController::class, 'close'])->where('period', '\d{4}-(0[1-9]|1[0-2])');
@@ -50,8 +58,11 @@ Route::prefix('v1')->group(function () {
             Route::get('balance-sheet', [ReportController::class, 'balanceSheet']);
             Route::get('income-statement', [ReportController::class, 'incomeStatement']);
             Route::get('vat-summary', [ReportController::class, 'vatSummary']);
+            Route::get('aging', [ContactController::class, 'aging']);
+            Route::get('withholding', [ReportController::class, 'withholding']);
+            Route::get('percentage-tax', [ReportController::class, 'percentageTax']);
             Route::get('{report}/export', [ExportController::class, 'report'])
-                ->whereIn('report', ['trial-balance', 'balance-sheet', 'income-statement', 'vat-summary']);
+                ->whereIn('report', ['trial-balance', 'balance-sheet', 'income-statement', 'vat-summary', 'aging', 'withholding', 'withholding-payees', 'percentage-tax']);
         });
 
         Route::prefix('audit')->group(function () {

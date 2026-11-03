@@ -173,6 +173,9 @@ class PeriodService
                 'reopen_reason' => $reason,
             ])->save();
 
+            // Reopening a fiscal year's last month undoes that year's close first.
+            app(YearEndService::class)->reopenForPeriod($period, $user);
+
             return $latest->load('reopener:id,name');
         });
     }

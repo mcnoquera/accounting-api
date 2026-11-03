@@ -9,13 +9,16 @@ use Illuminate\Support\Facades\DB;
 
 class LedgerRepository implements LedgerRepositoryInterface
 {
-    public function accountTotals(?string $from = null, ?string $to = null): Collection
+    public function accountTotals(?string $from = null, ?string $to = null, bool $excludeClosing = false): Collection
     {
         return DB::table('accounts')
             ->leftJoin('journal_lines', 'journal_lines.account_id', '=', 'accounts.id')
-            ->leftJoin('journal_entries', function ($join) use ($from, $to) {
+            ->leftJoin('journal_entries', function ($join) use ($from, $to, $excludeClosing) {
                 $join->on('journal_entries.id', '=', 'journal_lines.journal_entry_id')
                     ->where('journal_entries.status', EntryStatus::Posted->value);
+                if ($excludeClosing) {
+                    $join->where('journal_entries.is_closing', false);
+                }
                 if ($from) {
                     $join->whereDate('journal_entries.entry_date', '>=', $from);
                 }

@@ -16,7 +16,7 @@ class JournalEntry extends Model
 
     protected $fillable = [
         'number', 'entry_date', 'reference', 'description', 'status',
-        'created_by', 'posted_by', 'posted_at', 'voided_by', 'voided_at', 'void_reason', 'reversal_of_id',
+        'created_by', 'posted_by', 'posted_at', 'voided_by', 'voided_at', 'void_reason', 'reversal_of_id', 'is_closing',
     ];
 
     protected function casts(): array
@@ -26,6 +26,7 @@ class JournalEntry extends Model
             'status' => EntryStatus::class,
             'posted_at' => 'datetime',
             'voided_at' => 'datetime',
+            'is_closing' => 'boolean',
         ];
     }
 

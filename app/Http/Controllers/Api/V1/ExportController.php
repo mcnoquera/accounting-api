@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\ControlType;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\AuditLog;
@@ -32,16 +33,23 @@ class ExportController extends Controller
             'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
             'year' => ['nullable', 'integer', 'between:2000,2100'],
             'quarter' => ['nullable', 'integer', 'between:1,4'],
+            'type' => [Rule::requiredIf($report === 'aging'), 'nullable', Rule::enum(ControlType::class)],
         ]);
 
         $table = match ($report) {
             'trial-balance' => $this->tables->trialBalance($data['as_of'] ?? null),
             'balance-sheet' => $this->tables->balanceSheet($data['as_of'] ?? null),
             'income-statement' => $this->tables->incomeStatement($data['from'] ?? null, $data['to'] ?? null),
+            'aging' => $this->tables->aging(ControlType::from($data['type']), $data['as_of'] ?? null),
+            'withholding' => $this->tables->withholding((int) ($data['year'] ?? now()->year), (int) ($data['quarter'] ?? now()->quarter)),
+            'withholding-payees' => $this->tables->withholdingPayees((int) ($data['year'] ?? now()->year), (int) ($data['quarter'] ?? now()->quarter)),
+            'percentage-tax' => $this->tables->percentageTax((int) ($data['year'] ?? now()->year), (int) ($data['quarter'] ?? now()->quarter)),
             'vat-summary' => $this->tables->vatSummary((int) ($data['year'] ?? now()->year), (int) ($data['quarter'] ?? now()->quarter)),
         };
 
-        return $this->exporter->download($table, $data['format'], $report, $data, $request->user());
+        $slug = $report === 'aging' ? "{$data['type']}-aging" : $report;
+
+        return $this->exporter->download($table, $data['format'], $slug, $data, $request->user());
     }
 
     public function ledger(Request $request, Account $account): Response

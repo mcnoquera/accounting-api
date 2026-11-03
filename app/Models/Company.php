@@ -11,7 +11,7 @@ class Company extends Model
 
     protected $fillable = [
         'name', 'trade_name', 'tin', 'rdo_code', 'address', 'zip_code',
-        'vat_registered', 'currency', 'fiscal_year_start_month',
+        'vat_registered', 'percentage_tax_rate_bp', 'currency', 'fiscal_year_start_month',
     ];
 
     protected function casts(): array
@@ -19,6 +19,7 @@ class Company extends Model
         return [
             'vat_registered' => 'boolean',
             'fiscal_year_start_month' => 'integer',
+            'percentage_tax_rate_bp' => 'integer',
         ];
     }
 

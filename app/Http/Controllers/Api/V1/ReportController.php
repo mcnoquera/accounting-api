@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DateRangeRequest;
 use App\Services\DashboardService;
+use App\Services\PercentageTaxService;
 use App\Services\ReportService;
 use App\Services\VatSummaryService;
+use App\Services\WithholdingSummaryService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -42,6 +44,31 @@ class ReportController extends Controller
             (int) ($data['year'] ?? now()->year),
             (int) ($data['quarter'] ?? now()->quarter),
         ));
+    }
+
+    /** Calendar quarter; defaults to the current one. */
+    public function withholding(Request $request, WithholdingSummaryService $service): JsonResponse
+    {
+        $data = $request->validate([
+            'year' => ['nullable', 'integer', 'between:2000,2100'],
+            'quarter' => ['nullable', 'integer', 'between:1,4'],
+        ]);
+
+        return ApiResponse::ok($service->summary(
+            (int) ($data['year'] ?? now()->year),
+            (int) ($data['quarter'] ?? now()->quarter),
+        ));
+    }
+
+    /** Calendar quarter; defaults to the current one. */
+    public function percentageTax(Request $request, PercentageTaxService $service): JsonResponse
+    {
+        $data = $request->validate([
+            'year' => ['nullable', 'integer', 'between:2000,2100'],
+            'quarter' => ['nullable', 'integer', 'between:1,4'],
+        ]);
+
+        return ApiResponse::ok($service->summary((int) ($data['year'] ?? now()->year), (int) ($data['quarter'] ?? now()->quarter)));
     }
 
     public function dashboard(DashboardService $dashboard): JsonResponse
