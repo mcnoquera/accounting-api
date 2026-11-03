@@ -55,8 +55,9 @@ Route::prefix('v1')->group(function () {
             Route::get('income-statement', [ReportController::class, 'incomeStatement']);
             Route::get('vat-summary', [ReportController::class, 'vatSummary']);
             Route::get('aging', [ContactController::class, 'aging']);
+            Route::get('withholding', [ReportController::class, 'withholding']);
             Route::get('{report}/export', [ExportController::class, 'report'])
-                ->whereIn('report', ['trial-balance', 'balance-sheet', 'income-statement', 'vat-summary', 'aging']);
+                ->whereIn('report', ['trial-balance', 'balance-sheet', 'income-statement', 'vat-summary', 'aging', 'withholding', 'withholding-payees']);
         });
 
         Route::prefix('audit')->group(function () {
