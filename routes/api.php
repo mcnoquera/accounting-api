@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\AuditController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CompanyController;
+use App\Http\Controllers\Api\V1\ExportController;
 use App\Http\Controllers\Api\V1\JournalEntryController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\TaxCodeController;
@@ -28,6 +29,7 @@ Route::prefix('v1')->group(function () {
         Route::post('accounts/load-defaults', [AccountController::class, 'loadDefaults']);
         Route::apiResource('accounts', AccountController::class);
         Route::get('accounts/{account}/ledger', [AccountController::class, 'ledger']);
+        Route::get('accounts/{account}/ledger/export', [ExportController::class, 'ledger']);
 
         Route::apiResource('tax-codes', TaxCodeController::class)->only(['index', 'store', 'update'])
             ->parameters(['tax-codes' => 'taxCode']);
@@ -43,10 +45,13 @@ Route::prefix('v1')->group(function () {
             Route::get('balance-sheet', [ReportController::class, 'balanceSheet']);
             Route::get('income-statement', [ReportController::class, 'incomeStatement']);
             Route::get('vat-summary', [ReportController::class, 'vatSummary']);
+            Route::get('{report}/export', [ExportController::class, 'report'])
+                ->whereIn('report', ['trial-balance', 'balance-sheet', 'income-statement', 'vat-summary']);
         });
 
         Route::prefix('audit')->group(function () {
             Route::get('logs', [AuditController::class, 'logs']);
+            Route::get('logs/export', [ExportController::class, 'auditLogs']);
             Route::get('exceptions', [AuditController::class, 'exceptions']);
             Route::get('findings', [AuditController::class, 'findings']);
             Route::post('findings', [AuditController::class, 'raise']);
