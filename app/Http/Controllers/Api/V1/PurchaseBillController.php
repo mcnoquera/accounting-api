@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PurchaseBillRequest;
 use App\Models\PurchaseBill;
+use App\Services\PaymentService;
 use App\Services\PurchaseBillService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -45,9 +46,12 @@ class PurchaseBillController extends Controller
         ]);
     }
 
-    public function show(PurchaseBill $purchaseBill): JsonResponse
+    public function show(PurchaseBill $purchaseBill, PaymentService $payments): JsonResponse
     {
-        return ApiResponse::ok($this->bills->load($purchaseBill));
+        $bill = $this->bills->load($purchaseBill);
+        $bill->setAttribute('payments', $payments->forDocument('purchase_bill', $bill->id));
+
+        return ApiResponse::ok($bill);
     }
 
     public function store(PurchaseBillRequest $request): JsonResponse

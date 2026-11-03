@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\ContactController;
 use App\Http\Controllers\Api\V1\ExportController;
 use App\Http\Controllers\Api\V1\FiscalYearController;
 use App\Http\Controllers\Api\V1\JournalEntryController;
+use App\Http\Controllers\Api\V1\PaymentController;
 use App\Http\Controllers\Api\V1\PeriodController;
 use App\Http\Controllers\Api\V1\PurchaseBillController;
 use App\Http\Controllers\Api\V1\ReportController;
@@ -47,6 +48,10 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('purchase-bills', PurchaseBillController::class)->parameters(['purchase-bills' => 'purchaseBill']);
         Route::post('purchase-bills/{purchaseBill}/record', [PurchaseBillController::class, 'record']);
         Route::post('purchase-bills/{purchaseBill}/void', [PurchaseBillController::class, 'void']);
+
+        Route::apiResource('payments', PaymentController::class)->only(['index', 'show', 'store']);
+        Route::post('payments/{payment}/allocate', [PaymentController::class, 'allocate']);
+        Route::post('payments/{payment}/void', [PaymentController::class, 'void']);
 
         Route::apiResource('tax-codes', TaxCodeController::class)->only(['index', 'store', 'update'])
             ->parameters(['tax-codes' => 'taxCode']);

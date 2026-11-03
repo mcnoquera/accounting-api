@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Models\SalesInvoice;
 use App\Services\AuditLogger;
 use App\Services\Exports\Exporter;
+use App\Services\PaymentService;
 use App\Services\SalesInvoiceService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -49,9 +50,12 @@ class SalesInvoiceController extends Controller
         ]);
     }
 
-    public function show(SalesInvoice $salesInvoice): JsonResponse
+    public function show(SalesInvoice $salesInvoice, PaymentService $payments): JsonResponse
     {
-        return ApiResponse::ok($this->invoices->load($salesInvoice));
+        $invoice = $this->invoices->load($salesInvoice);
+        $invoice->setAttribute('payments', $payments->forDocument('sales_invoice', $invoice->id));
+
+        return ApiResponse::ok($invoice);
     }
 
     public function store(SalesInvoiceRequest $request): JsonResponse

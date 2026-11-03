@@ -28,6 +28,12 @@ class AccountRequest extends FormRequest
                     $fail("A {$value} control account must be a{$this->article($expected)} {$expected} account.");
                 }
             }],
+            'is_cash' => ['sometimes', 'boolean', function (string $attr, mixed $value, \Closure $fail) {
+                $type = $this->input('type') ?? $this->route('account')?->type?->value;
+                if ($value && $type !== 'asset') {
+                    $fail('Only asset accounts can be cash or bank accounts.');
+                }
+            }],
             'description' => ['nullable', 'string', 'max:2000'],
             'is_active' => ['sometimes', 'boolean'],
         ];

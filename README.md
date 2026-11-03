@@ -97,6 +97,13 @@ free Postgres databases expire after 30 days unless upgraded.
 - Drafts: supplier, the supplier's invoice number (unique per supplier among non-voided bills), dates (due date defaults to the supplier's terms), and lines with net amount, expense or asset account, VAT code and withholding ATC.
 - **Record** numbers the bill (`PB-000001`) and posts through the normal rules: Dr each line (with its codes), Dr Input VAT, Cr expanded withholding tax payable (withheld when the bill is recorded), Cr payable (supplier) for the amount due = total − withholding. The bill feeds the VAT summary, the withholding payee list and payables aging. Void (unpaid only) reverses the entry; document entries can't be voided or reversed directly.
 
+**Receipts and payments**
+- Asset accounts can be flagged `is_cash` (cash or bank); the Philippine starter chart flags 1110–1140. Receipts and payments choose from these.
+- **Receipt** (`RC-000001`) from a customer: amount received, optional tax the customer withheld (ATC, base and amount, checked against the rate ±₱1; Form 2307), allocations to the customer's open invoices. Posts Dr cash/bank, Dr creditable withholding tax, Cr receivable. Appears in the withholding summary's 2307 section.
+- **Payment** (`PY-000001`) to a supplier: allocations to open bills. Posts Dr payable, Cr cash/bank.
+- Allocations can't exceed a document's balance or the payment; anything left stays as an **unapplied** credit on the contact and can be allocated later. Invoices and bills show amount paid, balance due and `partially_paid` / `paid`. Voiding a payment reverses its entry and reopens what it paid; paid documents can't be voided.
+- **Aging is exact for documents**: invoices and bills age from their own due dates and balances (payments dated up to the as-of date), unapplied payments show as current credits; only hand-made control-account lines use the oldest-first approximation.
+
 **Customers and suppliers (subsidiary ledgers)**
 - Contacts: name, type (customer / supplier / both), TIN (normalised like the company TIN), address, email, phone, payment terms in days (default 30), active flag. Audited; a contact used on entries can't be deleted, only deactivated.
 - Accounts can be a `control_type` `receivable` (asset) or `payable` (liability) control account; the Philippine starter chart tags 1210 and 2110. Every line on a control account must name an active customer (receivable) or supplier (payable). Other lines may name a contact too, e.g. the payee of a cash expense.
@@ -166,6 +173,9 @@ amounts in requests are decimal strings like `"1250.50"`.
 | GET/POST | `/purchase-bills` | same filters as invoices; POST creates a draft |
 | GET/PUT/DELETE | `/purchase-bills/{id}` | PUT/DELETE drafts only |
 | POST | `/purchase-bills/{id}/record` · `/void` | void takes `{reason}` |
+| GET/POST | `/payments` | `?direction=receipt\|payment&contact_id&from&to&q&unapplied=1`; POST `{direction, contact_id, payment_date, cash_account_id, amount, ewt_code_id?, withholding_base?, withholding_amount?, reference?, allocations: [{document_id, amount}]}` |
+| GET | `/payments/{id}` | with allocations |
+| POST | `/payments/{id}/allocate` · `/void` | allocate unapplied `{allocations}`; void `{reason}` |
 | GET/POST | `/contacts` | `?type=customer\|supplier&active&q`; POST admin/accountant |
 | GET/PUT/DELETE | `/contacts/{id}` | DELETE only if unused |
 | GET | `/contacts/{id}/ledger` | `?type=receivable\|payable&from&to` |
