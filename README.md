@@ -16,6 +16,8 @@ php artisan serve               # http://localhost:8000
 Demo users (password `password`): `admin@example.com`, `accountant@example.com`,
 `controller@example.com`, `auditor@example.com`.
 
+The demo is a fictional VAT-registered trading company on the Philippine starter chart: customers and suppliers, VAT and withholding on sales and purchases (including a zero-rated export sale and a non-VAT lawyer), open receivables and payables, January and February closed, two drafts awaiting review, and entries that trip every audit exception test.
+
 ### Using MySQL or PostgreSQL
 
 SQLite is the zero-setup default. The API also runs on **MySQL 8.4+** and **PostgreSQL 16+** (production
