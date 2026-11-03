@@ -55,6 +55,11 @@ free Postgres databases expire after 30 days unless upgraded.
   - **Reverse** posts a new entry on a date you choose (on or after the original) that swaps every debit and credit. Both stay in the ledger and net to zero, which keeps a closed period's figures intact. The pair links both ways (`reversal_of` / `reversed_by`); an entry can be reversed once, a reversal can't be reversed, and neither side of a pair can be voided.
 - Money is stored as integer cents and parsed from strings, so there is no floating-point drift.
 
+**Month-end close**
+- Periods are calendar months, closed strictly in order by an admin or accountant (from the month of the earliest entry, and only once the month has ended). Closing locks every date up to the month's last day.
+- In a closed period you can't create, edit into, post or void entries; correct them with a **reversal** dated in an open period (the default reversal date skips past closed months). Drafts left in a closed month can be deleted or moved to an open date.
+- Only an admin can reopen, only the most recent closed period, and only with a reason. Closing reports how many drafts are still dated in the month. Close and reopen are in the audit trail.
+
 **Reports** (posted entries only): trial balance, balance sheet (with current-period earnings rolled into equity), income statement, and per-account general ledger with running balance.
 
 **Audit**
@@ -95,6 +100,9 @@ amounts in requests are decimal strings like `"1250.50"`.
 | POST | `/journal-entries/{id}/post` | |
 | POST | `/journal-entries/{id}/void` | `{reason}` |
 | POST | `/journal-entries/{id}/reverse` | `{reason, entry_date?}` → the new reversing entry (201) |
+| GET | `/periods` | months with status and counts; `meta.locked_through`, `first_open_date`, `next_to_close` |
+| POST | `/periods/{YYYY-MM}/close` | admin/accountant; `meta.draft_count` |
+| POST | `/periods/{YYYY-MM}/reopen` | admin; `{reason}`, latest closed period only |
 | GET | `/reports/trial-balance` · `/reports/balance-sheet` | `?as_of` |
 | GET | `/reports/income-statement` | `?from&to` |
 | GET | `/audit/logs` | `?action&type&user_id&from&to` |

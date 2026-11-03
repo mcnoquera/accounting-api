@@ -85,7 +85,7 @@ class JournalEntryController extends Controller
         $reversal = $this->entries->reverse(
             $journalEntry,
             $request->user(),
-            $request->validated('entry_date') ?? now()->toDateString(),
+            $request->validated('entry_date'),
             $request->validated('reason'),
         );
 
