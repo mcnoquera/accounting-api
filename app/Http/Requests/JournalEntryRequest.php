@@ -21,6 +21,7 @@ class JournalEntryRequest extends FormRequest
             'lines.*.credit' => $amount,
             'lines.*.memo' => ['nullable', 'string', 'max:255'],
             'lines.*.vat_code_id' => ['nullable', 'integer', Rule::exists('tax_codes', 'id')->where('kind', 'vat')],
+            'lines.*.contact_id' => ['nullable', 'integer', Rule::exists('contacts', 'id')],
             'lines.*.ewt_code_id' => ['nullable', 'integer', Rule::exists('tax_codes', 'id')->where('kind', 'ewt')],
         ];
     }

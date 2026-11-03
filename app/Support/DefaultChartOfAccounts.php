@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Enums\AccountType;
+use App\Enums\ControlType;
 use App\Enums\TaxRole;
 
 /**
@@ -18,6 +19,12 @@ final class DefaultChartOfAccounts
         '1430' => TaxRole::CwtReceivable,
         '2210' => TaxRole::OutputVat,
         '2230' => TaxRole::EwtPayable,
+    ];
+
+    /** Receivable/payable control accounts in the starter chart, by code. */
+    public const CONTROL_TYPES = [
+        '1210' => ControlType::Receivable,
+        '2110' => ControlType::Payable,
     ];
 
     /** @return list<array{0:string, 1:string, 2:AccountType, 3:?string}> [code, name, type, parent code] */

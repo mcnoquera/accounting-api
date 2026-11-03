@@ -9,6 +9,7 @@ use App\Enums\TaxRole;
 use App\Exceptions\DomainRuleException;
 use App\Models\Account;
 use App\Models\Company;
+use App\Models\Contact;
 use App\Models\JournalEntry;
 use App\Models\TaxCode;
 use App\Models\User;
@@ -83,7 +84,7 @@ class JournalEntryService
         );
         $lines = $entry->lines->map(fn ($l) => [
             'account_id' => $l->account_id, 'debit' => $l->debit, 'credit' => $l->credit, 'memo' => $l->memo,
-            'vat_code_id' => $l->vat_code_id, 'ewt_code_id' => $l->ewt_code_id,
+            'vat_code_id' => $l->vat_code_id, 'ewt_code_id' => $l->ewt_code_id, 'contact_id' => $l->contact_id,
         ])->all();
         $this->assertLinesValid($lines);
 
@@ -151,6 +152,7 @@ class JournalEntryService
                 'memo' => $l->memo,
                 'vat_code_id' => $l->vat_code_id,
                 'ewt_code_id' => $l->ewt_code_id,
+                'contact_id' => $l->contact_id,
             ])->all();
 
             return $this->entries->create([
@@ -170,7 +172,7 @@ class JournalEntryService
     /**
      * Converts decimal amounts (e.g. "1250.50") into integer cents and drops empty lines.
      *
-     * @return list<array{account_id:int, debit:int, credit:int, memo:?string, vat_code_id:?int, ewt_code_id:?int}>
+     * @return list<array{account_id:int, debit:int, credit:int, memo:?string, vat_code_id:?int, ewt_code_id:?int, contact_id:?int}>
      */
     public function normalizeLines(array $lines): array
     {
@@ -188,6 +190,7 @@ class JournalEntryService
                 'memo' => $line['memo'] ?? null,
                 'vat_code_id' => self::optionalId($line['vat_code_id'] ?? null),
                 'ewt_code_id' => self::optionalId($line['ewt_code_id'] ?? null),
+                'contact_id' => self::optionalId($line['contact_id'] ?? null),
             ];
         }
 
@@ -254,7 +257,45 @@ class JournalEntryService
             ]);
         }
 
+        $this->assertContactsValid($lines, $found);
         $this->assertTaxValid($lines, $found);
+    }
+
+    /**
+     * Lines on a receivable/payable control account must name an active customer/supplier,
+     * so the subsidiary ledgers always add up to the control account. Other lines may name a
+     * contact too (e.g. the payee of a cash expense, for withholding tax lists).
+     *
+     * @param  Collection<int, Account>  $accounts  keyed by id
+     */
+    private function assertContactsValid(array $lines, Collection $accounts): void
+    {
+        $ids = array_values(array_unique(array_filter(array_column($lines, 'contact_id'))));
+        $contacts = $ids === [] ? collect() : Contact::query()->findMany($ids)->keyBy('id');
+
+        foreach ($lines as $i => $line) {
+            $account = $accounts->get($line['account_id']);
+            $contact = isset($line['contact_id']) ? $contacts->get($line['contact_id']) : null;
+
+            if ($contact && ! $contact->is_active) {
+                throw new DomainRuleException("{$contact->name} is inactive.", ["lines.$i" => ['Choose an active contact.']]);
+            }
+            $control = $account->control_type;
+            if ($control === null) {
+                continue;
+            }
+            $who = $control->contactLabel();
+            if ($contact === null) {
+                throw new DomainRuleException('Line '.($i + 1)." posts to {$account->code} {$account->name}, which needs a {$who}.", [
+                    "lines.$i" => ["Choose the {$who} for this line."],
+                ]);
+            }
+            if (! $control->accepts($contact->type)) {
+                throw new DomainRuleException("{$contact->name} isn't set up as a {$who}, so it can't be used on {$account->code}.", [
+                    "lines.$i" => ["Choose a {$who}, or change the contact's type."],
+                ]);
+            }
+        }
     }
 
     /** Allowed difference per tax account role, for rounding line by line. */

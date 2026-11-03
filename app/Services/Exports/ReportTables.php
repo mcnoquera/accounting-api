@@ -2,8 +2,10 @@
 
 namespace App\Services\Exports;
 
+use App\Enums\ControlType;
 use App\Models\Account;
 use App\Models\AuditLog;
+use App\Services\ContactService;
 use App\Services\ReportService;
 use App\Services\VatSummaryService;
 use Carbon\CarbonImmutable;
@@ -18,7 +20,7 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class ReportTables
 {
-    public function __construct(private ReportService $reports, private VatSummaryService $vat) {}
+    public function __construct(private ReportService $reports, private VatSummaryService $vat, private ContactService $contacts) {}
 
     public function trialBalance(?string $asOf): array
     {
@@ -89,6 +91,28 @@ class ReportTables
         $label = sprintf('Q%d %d (%s to %s), calendar quarter', $quarter, $year, $this->date($v['from']), $this->date($v['to']));
 
         return $this->table('VAT summary', $label, $columns, range(1, count($buckets)), $rows, $notes);
+    }
+
+    public function aging(ControlType $control, ?string $asOf): array
+    {
+        $a = $this->contacts->aging($control, $asOf);
+        $rows = array_map(fn ($r) => $this->row([
+            $r['name'], (string) ($r['tin'] ?? ''), (string) $r['payment_terms_days'],
+            $r['current'], $r['days_1_30'], $r['days_31_60'], $r['days_61_90'], $r['over_90'], $r['total'],
+        ]), $a['rows']);
+        $t = $a['totals'];
+        $rows[] = $this->row(['Total', '', '', $t['current'], $t['days_1_30'], $t['days_31_60'], $t['days_61_90'], $t['over_90'], $t['total']], 'total');
+
+        $notes = ['Aged by days past due (entry date + payment terms); payments and credits settle the oldest charges first.'];
+        if ($a['unassigned'] !== 0) {
+            $notes[] = sprintf('Control account balance %s; %s is on lines without a contact.',
+                Exporter::pesos($a['control_balance'], true), Exporter::pesos($a['unassigned'], true));
+        }
+        $title = $control === ControlType::Receivable ? 'Receivables aging' : 'Payables aging';
+
+        return $this->table($title, $this->asOfLabel($a['as_of']),
+            [$control === ControlType::Receivable ? 'Customer' : 'Supplier', 'TIN', 'Terms (days)', 'Current', '1–30', '31–60', '61–90', 'Over 90', 'Total'],
+            [3, 4, 5, 6, 7, 8], $rows, $notes);
     }
 
     public function ledger(Account $account, ?string $from, ?string $to): array
