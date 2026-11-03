@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
 
 permissions:
@@ -65,6 +65,68 @@ jobs:
         run: |
           touch database/database.sqlite
           php artisan migrate --seed --force
+
+  databases:
+    name: Tests (${{ matrix.db }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - db: mysql
+            port: 3306
+          - db: pgsql
+            port: 5432
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: ledgerly_test
+          MYSQL_USER: ledgerly
+          MYSQL_PASSWORD: ledgerly
+          MYSQL_ROOT_PASSWORD: root
+        ports: ['3306:3306']
+        options: --health-cmd="mysqladmin ping -h 127.0.0.1" --health-interval=5s --health-timeout=5s --health-retries=20
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: ledgerly_test
+          POSTGRES_USER: ledgerly
+          POSTGRES_PASSWORD: ledgerly
+        ports: ['5432:5432']
+        options: --health-cmd="pg_isready -U ledgerly" --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_CONNECTION: ${{ matrix.db }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: ${{ matrix.port }}
+      DB_DATABASE: ledgerly_test
+      DB_USERNAME: ledgerly
+      DB_PASSWORD: ledgerly
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.4'
+          extensions: dom, curl, libxml, mbstring, zip, pdo, pdo_mysql, pdo_pgsql
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # DB_* come from the job env and take precedence over phpunit.xml's SQLite defaults.
+      - name: Run tests
+        run: php artisan test
+
+      - name: Migrate and seed demo data
+        run: php artisan migrate:fresh --seed --force
 
   docker:
     name: Docker image builds
