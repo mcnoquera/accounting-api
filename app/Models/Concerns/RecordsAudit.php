@@ -18,7 +18,7 @@ trait RecordsAudit
 
         static::updated(function (Model $model) {
             $changed = array_keys($model->getChanges());
-            $changed = array_values(array_diff($changed, ['updated_at']));
+            $changed = array_values(array_diff($changed, ['updated_at', ...$model->auditExcluded()]));
             if ($changed === []) {
                 return;
             }
@@ -35,6 +35,16 @@ trait RecordsAudit
     /** @return array<string, mixed> */
     public function auditableAttributes(): array
     {
-        return array_diff_key($this->getAttributes(), array_flip(['created_at', 'updated_at']));
+        return array_diff_key($this->getAttributes(), array_flip(['created_at', 'updated_at', ...$this->auditExcluded()]));
+    }
+
+    /**
+     * Attributes never written to the audit log (secrets, counters). Override per model.
+     *
+     * @return list<string>
+     */
+    public function auditExcluded(): array
+    {
+        return [];
     }
 }

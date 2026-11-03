@@ -17,6 +17,7 @@ class AccountRequest extends FormRequest
             'code' => [$required, 'string', 'max:20', 'regex:/^[A-Za-z0-9.\-]+$/', Rule::unique('accounts', 'code')->ignore($id)],
             'name' => [$required, 'string', 'max:255'],
             'type' => [$required, Rule::enum(AccountType::class)],
+            'parent_id' => ['nullable', 'integer', Rule::exists('accounts', 'id')],
             'description' => ['nullable', 'string', 'max:2000'],
             'is_active' => ['sometimes', 'boolean'],
         ];

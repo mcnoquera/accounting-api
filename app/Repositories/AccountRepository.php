@@ -44,6 +44,21 @@ class AccountRepository implements AccountRepositoryInterface
         return $account->lines()->exists();
     }
 
+    public function hasChildren(Account $account): bool
+    {
+        return $account->children()->exists();
+    }
+
+    public function isEmpty(): bool
+    {
+        return ! Account::query()->exists();
+    }
+
+    public function withChildren(array $ids): array
+    {
+        return Account::query()->whereIn('parent_id', $ids)->distinct()->pluck('parent_id')->map(fn ($id) => (int) $id)->all();
+    }
+
     public function findMany(array $ids): Collection
     {
         return Account::whereIn('id', $ids)->get()->keyBy('id');
