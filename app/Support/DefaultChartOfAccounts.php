@@ -27,6 +27,9 @@ final class DefaultChartOfAccounts
         '2110' => ControlType::Payable,
     ];
 
+    /** Cash and bank accounts in the starter chart. */
+    public const CASH_ACCOUNTS = ['1110', '1120', '1130', '1140'];
+
     /** @return list<array{0:string, 1:string, 2:AccountType, 3:?string}> [code, name, type, parent code] */
     public static function rows(): array
     {

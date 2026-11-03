@@ -7,9 +7,14 @@ use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\ContactController;
 use App\Http\Controllers\Api\V1\ExportController;
 use App\Http\Controllers\Api\V1\FiscalYearController;
+use App\Http\Controllers\Api\V1\ImportController;
 use App\Http\Controllers\Api\V1\JournalEntryController;
+use App\Http\Controllers\Api\V1\OpeningBalanceController;
+use App\Http\Controllers\Api\V1\PaymentController;
 use App\Http\Controllers\Api\V1\PeriodController;
+use App\Http\Controllers\Api\V1\PurchaseBillController;
 use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\SalesInvoiceController;
 use App\Http\Controllers\Api\V1\TaxCodeController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
@@ -37,6 +42,19 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('contacts', ContactController::class);
         Route::get('contacts/{contact}/ledger', [ContactController::class, 'ledger']);
 
+        Route::apiResource('sales-invoices', SalesInvoiceController::class)->parameters(['sales-invoices' => 'salesInvoice']);
+        Route::post('sales-invoices/{salesInvoice}/issue', [SalesInvoiceController::class, 'issue']);
+        Route::post('sales-invoices/{salesInvoice}/void', [SalesInvoiceController::class, 'void']);
+        Route::get('sales-invoices/{salesInvoice}/pdf', [SalesInvoiceController::class, 'pdf']);
+
+        Route::apiResource('purchase-bills', PurchaseBillController::class)->parameters(['purchase-bills' => 'purchaseBill']);
+        Route::post('purchase-bills/{purchaseBill}/record', [PurchaseBillController::class, 'record']);
+        Route::post('purchase-bills/{purchaseBill}/void', [PurchaseBillController::class, 'void']);
+
+        Route::apiResource('payments', PaymentController::class)->only(['index', 'show', 'store']);
+        Route::post('payments/{payment}/allocate', [PaymentController::class, 'allocate']);
+        Route::post('payments/{payment}/void', [PaymentController::class, 'void']);
+
         Route::apiResource('tax-codes', TaxCodeController::class)->only(['index', 'store', 'update'])
             ->parameters(['tax-codes' => 'taxCode']);
 
@@ -45,6 +63,12 @@ Route::prefix('v1')->group(function () {
         Route::post('journal-entries/{journalEntry}/post', [JournalEntryController::class, 'post']);
         Route::post('journal-entries/{journalEntry}/void', [JournalEntryController::class, 'void']);
         Route::post('journal-entries/{journalEntry}/reverse', [JournalEntryController::class, 'reverse']);
+
+        Route::get('imports/{kind}/template', [ImportController::class, 'template'])->whereIn('kind', ['accounts', 'contacts']);
+        Route::post('imports/{kind}/preview', [ImportController::class, 'preview'])->whereIn('kind', ['accounts', 'contacts']);
+        Route::post('imports/{kind}/commit', [ImportController::class, 'commit'])->whereIn('kind', ['accounts', 'contacts']);
+        Route::get('opening-balances', [OpeningBalanceController::class, 'show']);
+        Route::put('opening-balances', [OpeningBalanceController::class, 'save']);
 
         Route::get('fiscal-years', [FiscalYearController::class, 'index']);
         Route::post('fiscal-years/{year}/close', [FiscalYearController::class, 'close'])->whereNumber('year');

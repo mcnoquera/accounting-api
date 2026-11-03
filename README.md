@@ -16,6 +16,8 @@ php artisan serve               # http://localhost:8000
 Demo users (password `password`): `admin@example.com`, `accountant@example.com`,
 `controller@example.com`, `auditor@example.com`.
 
+The demo is a fictional VAT-registered trading company on the Philippine starter chart: customers and suppliers, VAT and withholding on sales and purchases (including a zero-rated export sale and a non-VAT lawyer), open receivables and payables, January and February closed, two drafts awaiting review, and entries that trip every audit exception test.
+
 ### Using MySQL or PostgreSQL
 
 SQLite is the zero-setup default. The API also runs on **MySQL 8.4+** and **PostgreSQL 16+** (production
@@ -86,6 +88,26 @@ free Postgres databases expire after 30 days unless upgraded.
   - **Reverse** posts a new entry on a date you choose (on or after the original) that swaps every debit and credit. Both stay in the ledger and net to zero, which keeps a closed period's figures intact. The pair links both ways (`reversal_of` / `reversed_by`); an entry can be reversed once, a reversal can't be reversed, and neither side of a pair can be voided.
 - Money is stored as integer cents and parsed from strings, so there is no floating-point drift.
 
+**Sales invoices**
+- Drafts are editable: customer, dates (due date defaults to the customer's terms), reference, notes, and lines with description, quantity (up to 3 decimals), unit price, revenue account and VAT code. Amounts use integer maths, rounded half up.
+- **Issue** numbers the invoice (`SI-000001`, gap-free) and posts an ordinary journal entry through the normal rules (period lock, tax check, customer on the control account): Dr receivable for the total, Cr revenue per account and VAT code, Cr Output VAT. The entry is linked to the invoice and can only be undone by **voiding** the invoice (unpaid only), which reverses it on the invoice date or the first open date.
+- **PDF** for customers: seller's registered name, TIN (VAT/Non-VAT), address; invoice number and dates; buyer's name, address and TIN; lines; VATable / zero-rated / exempt sales, VAT and total, or the non-VAT notice. Printing is audited. *System-generated invoices generally require the system to be registered with the BIR; confirm with your accountant.*
+
+**Supplier bills**
+- Drafts: supplier, the supplier's invoice number (unique per supplier among non-voided bills), dates (due date defaults to the supplier's terms), and lines with net amount, expense or asset account, VAT code and withholding ATC.
+- **Record** numbers the bill (`PB-000001`) and posts through the normal rules: Dr each line (with its codes), Dr Input VAT, Cr expanded withholding tax payable (withheld when the bill is recorded), Cr payable (supplier) for the amount due = total − withholding. The bill feeds the VAT summary, the withholding payee list and payables aging. Void (unpaid only) reverses the entry; document entries can't be voided or reversed directly.
+
+**Receipts and payments**
+- Asset accounts can be flagged `is_cash` (cash or bank); the Philippine starter chart flags 1110–1140. Receipts and payments choose from these.
+- **Receipt** (`RC-000001`) from a customer: amount received, optional tax the customer withheld (ATC, base and amount, checked against the rate ±₱1; Form 2307), allocations to the customer's open invoices. Posts Dr cash/bank, Dr creditable withholding tax, Cr receivable. Appears in the withholding summary's 2307 section.
+- **Payment** (`PY-000001`) to a supplier: allocations to open bills. Posts Dr payable, Cr cash/bank.
+- Allocations can't exceed a document's balance or the payment; anything left stays as an **unapplied** credit on the contact and can be allocated later. Invoices and bills show amount paid, balance due and `partially_paid` / `paid`. Voiding a payment reverses its entry and reopens what it paid; paid documents can't be voided.
+- **Aging is exact for documents**: invoices and bills age from their own due dates and balances (payments dated up to the as-of date), unapplied payments show as current credits; only hand-made control-account lines use the oldest-first approximation.
+
+**Moving onto Ledgerly: import and opening balances**
+- **CSV import** of the chart of accounts (matched on code) and contacts (matched on TIN, else exact name), from downloadable templates. *Preview* shows each row as create / update / unchanged / error with line-specific messages and writes nothing; *commit* re-checks and writes all rows or none. Parents can appear anywhere in the file; accounts with entries can't change type.
+- **Opening balances** for a cut-over date (the 1st of your first month): account balances plus opening invoices and bills per customer and supplier (original number, date, due date, amount still owed), so aging and payments work from day one. One system entry dated the day before cut-over carries everything; the difference goes to Opening Balance Equity (3900, created if missing). Every month before cut-over is closed. Replaceable with the same cut-over until an opening document is paid or the cut-over month is closed. Not allowed once there are entries dated before cut-over.
+
 **Customers and suppliers (subsidiary ledgers)**
 - Contacts: name, type (customer / supplier / both), TIN (normalised like the company TIN), address, email, phone, payment terms in days (default 30), active flag. Audited; a contact used on entries can't be deleted, only deactivated.
 - Accounts can be a `control_type` `receivable` (asset) or `payable` (liability) control account; the Philippine starter chart tags 1210 and 2110. Every line on a control account must name an active customer (receivable) or supplier (payable). Other lines may name a contact too, e.g. the payee of a cash expense.
@@ -148,6 +170,19 @@ amounts in requests are decimal strings like `"1250.50"`.
 | POST | `/accounts/load-defaults` | Philippine starter chart, empty chart only |
 | GET/PUT/DELETE | `/accounts/{id}` | |
 | GET | `/accounts/{id}/ledger` | `?from&to` |
+| GET/POST | `/sales-invoices` | `?status=draft\|open\|overdue\|paid\|voided&contact_id&from&to&q`; POST creates a draft |
+| GET/PUT/DELETE | `/sales-invoices/{id}` | PUT/DELETE drafts only |
+| POST | `/sales-invoices/{id}/issue` · `/void` | void takes `{reason}` |
+| GET | `/sales-invoices/{id}/pdf` | customer-facing PDF (audited) |
+| GET/POST | `/purchase-bills` | same filters as invoices; POST creates a draft |
+| GET/PUT/DELETE | `/purchase-bills/{id}` | PUT/DELETE drafts only |
+| POST | `/purchase-bills/{id}/record` · `/void` | void takes `{reason}` |
+| GET/POST | `/payments` | `?direction=receipt\|payment&contact_id&from&to&q&unapplied=1`; POST `{direction, contact_id, payment_date, cash_account_id, amount, ewt_code_id?, withholding_base?, withholding_amount?, reference?, allocations: [{document_id, amount}]}` |
+| GET | `/payments/{id}` | with allocations |
+| POST | `/payments/{id}/allocate` · `/void` | allocate unapplied `{allocations}`; void `{reason}` |
+| GET | `/imports/{accounts\|contacts}/template` | CSV template |
+| POST | `/imports/{accounts\|contacts}/preview` · `/commit` | `{csv}` |
+| GET/PUT | `/opening-balances` | PUT `{cutover_date, equity_account_id?, lines: [{account_id, debit\|credit}], receivables: [{contact_id, number, date, due_date?, amount}], payables: [...]}` |
 | GET/POST | `/contacts` | `?type=customer\|supplier&active&q`; POST admin/accountant |
 | GET/PUT/DELETE | `/contacts/{id}` | DELETE only if unused |
 | GET | `/contacts/{id}/ledger` | `?type=receivable\|payable&from&to` |
