@@ -29,6 +29,8 @@ class CompanyRequest extends FormRequest
             'address' => ['required', 'string', 'max:500'],
             'zip_code' => ['nullable', 'regex:/^\d{4}$/'],
             'vat_registered' => ['required', 'boolean'],
+            // Percent with up to 2 decimals, e.g. "3" or "1.5"
+            'percentage_tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100', 'regex:/^\d{1,3}(\.\d{1,2})?$/'],
             'currency' => ['sometimes', 'in:PHP'],
             'fiscal_year_start_month' => ['required', 'integer', 'between:1,12'],
         ];
@@ -49,6 +51,13 @@ class CompanyRequest extends FormRequest
         $data = $this->validated();
         $data['tin'] = Tin::normalize($data['tin']);
         $data['currency'] = 'PHP';
+        if (array_key_exists('percentage_tax_rate', $data)) {
+            if ($data['percentage_tax_rate'] !== null) {
+                [$whole, $frac] = array_pad(explode('.', (string) $data['percentage_tax_rate']), 2, '0');
+                $data['percentage_tax_rate_bp'] = (int) $whole * 100 + (int) str_pad(substr($frac, 0, 2), 2, '0');
+            }
+            unset($data['percentage_tax_rate']);
+        }
 
         return $data;
     }
