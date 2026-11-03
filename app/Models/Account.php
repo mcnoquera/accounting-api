@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\AccountType;
+use App\Enums\TaxRole;
 use App\Models\Concerns\RecordsAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,7 +14,7 @@ class Account extends Model
 {
     use HasFactory, RecordsAudit;
 
-    protected $fillable = ['code', 'name', 'type', 'parent_id', 'description', 'is_active'];
+    protected $fillable = ['code', 'name', 'type', 'parent_id', 'tax_role', 'description', 'is_active'];
 
     protected $appends = ['normal_balance'];
 
@@ -21,6 +22,7 @@ class Account extends Model
     {
         return [
             'type' => AccountType::class,
+            'tax_role' => TaxRole::class,
             'parent_id' => 'integer',
             'is_active' => 'boolean',
         ];

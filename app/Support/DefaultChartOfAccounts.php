@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Enums\AccountType;
+use App\Enums\TaxRole;
 
 /**
  * Starter chart of accounts for a Philippine small business (VAT, withholding taxes,
@@ -11,6 +12,14 @@ use App\Enums\AccountType;
  */
 final class DefaultChartOfAccounts
 {
+    /** Tax accounts in the starter chart, by code. */
+    public const TAX_ROLES = [
+        '1420' => TaxRole::InputVat,
+        '1430' => TaxRole::CwtReceivable,
+        '2210' => TaxRole::OutputVat,
+        '2230' => TaxRole::EwtPayable,
+    ];
+
     /** @return list<array{0:string, 1:string, 2:AccountType, 3:?string}> [code, name, type, parent code] */
     public static function rows(): array
     {

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class JournalEntryRequest extends FormRequest
 {
@@ -19,6 +20,8 @@ class JournalEntryRequest extends FormRequest
             'lines.*.debit' => $amount,
             'lines.*.credit' => $amount,
             'lines.*.memo' => ['nullable', 'string', 'max:255'],
+            'lines.*.vat_code_id' => ['nullable', 'integer', Rule::exists('tax_codes', 'id')->where('kind', 'vat')],
+            'lines.*.ewt_code_id' => ['nullable', 'integer', Rule::exists('tax_codes', 'id')->where('kind', 'ewt')],
         ];
     }
 
@@ -27,6 +30,8 @@ class JournalEntryRequest extends FormRequest
         return [
             'lines.*.debit.regex' => 'Debit must be a positive amount with at most 2 decimals.',
             'lines.*.credit.regex' => 'Credit must be a positive amount with at most 2 decimals.',
+            'lines.*.vat_code_id.exists' => 'Choose a VAT code.',
+            'lines.*.ewt_code_id.exists' => 'Choose a withholding tax code.',
         ];
     }
 }

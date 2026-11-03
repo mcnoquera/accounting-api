@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\JournalEntryController;
 use App\Http\Controllers\Api\V1\PeriodController;
 use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\TaxCodeController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -28,6 +29,9 @@ Route::prefix('v1')->group(function () {
         Route::post('accounts/load-defaults', [AccountController::class, 'loadDefaults']);
         Route::apiResource('accounts', AccountController::class);
         Route::get('accounts/{account}/ledger', [AccountController::class, 'ledger']);
+
+        Route::apiResource('tax-codes', TaxCodeController::class)->only(['index', 'store', 'update'])
+            ->parameters(['tax-codes' => 'taxCode']);
 
         Route::apiResource('journal-entries', JournalEntryController::class)
             ->parameters(['journal-entries' => 'journalEntry']);
