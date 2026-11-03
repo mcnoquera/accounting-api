@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\DateRangeRequest;
 use App\Services\DashboardService;
 use App\Services\ReportService;
+use App\Services\VatSummaryService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ReportController extends Controller
 {
@@ -26,6 +28,20 @@ class ReportController extends Controller
     public function incomeStatement(DateRangeRequest $request): JsonResponse
     {
         return ApiResponse::ok($this->reports->incomeStatement($request->validated('from'), $request->validated('to')));
+    }
+
+    /** Calendar quarter; defaults to the current one. */
+    public function vatSummary(Request $request, VatSummaryService $vat): JsonResponse
+    {
+        $data = $request->validate([
+            'year' => ['nullable', 'integer', 'between:2000,2100'],
+            'quarter' => ['nullable', 'integer', 'between:1,4'],
+        ]);
+
+        return ApiResponse::ok($vat->summary(
+            (int) ($data['year'] ?? now()->year),
+            (int) ($data['quarter'] ?? now()->quarter),
+        ));
     }
 
     public function dashboard(DashboardService $dashboard): JsonResponse

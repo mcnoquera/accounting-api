@@ -42,6 +42,7 @@ Route::prefix('v1')->group(function () {
             Route::get('trial-balance', [ReportController::class, 'trialBalance']);
             Route::get('balance-sheet', [ReportController::class, 'balanceSheet']);
             Route::get('income-statement', [ReportController::class, 'incomeStatement']);
+            Route::get('vat-summary', [ReportController::class, 'vatSummary']);
         });
 
         Route::prefix('audit')->group(function () {

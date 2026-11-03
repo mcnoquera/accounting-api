@@ -60,6 +60,8 @@ free Postgres databases expire after 30 days unless upgraded.
 - Accounts can carry a `tax_role`: `input_vat`, `output_vat`, `ewt_payable` (tax we withheld) or `cwt_receivable` (tax customers withheld, Form 2307). The Philippine starter chart tags 1420, 2210, 2230 and 1430.
 - A journal line can carry a `vat_code_id` and an `ewt_code_id`. They go on the **base line** (the sale or purchase), whose amount is the tax base. Saving and posting check that each tax role on the entry holds base × rate (±₱1): VAT on the same side as the base line, withholding on the other side. Revenue lines are sales, everything else purchases, so returns and reversals check out too. Zero-rated and exempt codes need no tax line. A company that isn't VAT-registered can't charge output VAT.
 
+**VAT summary** (supports BIR Form 2550Q): for a calendar quarter, vatable / zero-rated / exempt sales and purchases from the VAT codes on base lines (sales returns and reversals reduce them), output and input VAT from the VAT-account lines of those coded entries, and net VAT payable (negative = excess input VAT), by month and for the quarter. It also shows VAT computed from the codes next to VAT booked, and lists VAT-account activity in entries without a VAT code (quarter-end settlements, or sales/purchases missing their code) separately.
+
 **Reports** (posted entries only): trial balance, balance sheet (with current-period earnings rolled into equity), income statement, and per-account general ledger with running balance.
 
 **Audit**
@@ -104,6 +106,7 @@ amounts in requests are decimal strings like `"1250.50"`.
 | POST | `/journal-entries/{id}/reverse` | `{reason, entry_date?}` → the new reversing entry (201) |
 | GET | `/reports/trial-balance` · `/reports/balance-sheet` | `?as_of` |
 | GET | `/reports/income-statement` | `?from&to` |
+| GET | `/reports/vat-summary` | `?year&quarter` (calendar quarter 1–4; default current) |
 | GET | `/audit/logs` | `?action&type&user_id&from&to` |
 | GET | `/audit/exceptions` | `?from&to` |
 | GET/POST | `/audit/findings` | `?status&severity` |
