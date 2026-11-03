@@ -16,7 +16,7 @@ class JournalEntry extends Model
 
     protected $fillable = [
         'number', 'entry_date', 'reference', 'description', 'status',
-        'created_by', 'posted_by', 'posted_at', 'voided_by', 'voided_at', 'void_reason', 'reversal_of_id', 'is_closing',
+        'created_by', 'posted_by', 'posted_at', 'voided_by', 'voided_at', 'void_reason', 'reversal_of_id', 'is_closing', 'source_type', 'source_id',
     ];
 
     protected function casts(): array

@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\FiscalYearController;
 use App\Http\Controllers\Api\V1\JournalEntryController;
 use App\Http\Controllers\Api\V1\PeriodController;
 use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\SalesInvoiceController;
 use App\Http\Controllers\Api\V1\TaxCodeController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
@@ -36,6 +37,11 @@ Route::prefix('v1')->group(function () {
 
         Route::apiResource('contacts', ContactController::class);
         Route::get('contacts/{contact}/ledger', [ContactController::class, 'ledger']);
+
+        Route::apiResource('sales-invoices', SalesInvoiceController::class)->parameters(['sales-invoices' => 'salesInvoice']);
+        Route::post('sales-invoices/{salesInvoice}/issue', [SalesInvoiceController::class, 'issue']);
+        Route::post('sales-invoices/{salesInvoice}/void', [SalesInvoiceController::class, 'void']);
+        Route::get('sales-invoices/{salesInvoice}/pdf', [SalesInvoiceController::class, 'pdf']);
 
         Route::apiResource('tax-codes', TaxCodeController::class)->only(['index', 'store', 'update'])
             ->parameters(['tax-codes' => 'taxCode']);
