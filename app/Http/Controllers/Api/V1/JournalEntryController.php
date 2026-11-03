@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\JournalEntryRequest;
+use App\Http\Requests\ReverseEntryRequest;
 use App\Http\Requests\VoidEntryRequest;
 use App\Models\JournalEntry;
 use App\Services\JournalEntryService;
@@ -75,5 +76,19 @@ class JournalEntryController extends Controller
         Gate::authorize('manage-books');
 
         return ApiResponse::ok($this->entries->void($journalEntry, $request->user(), $request->validated('reason')));
+    }
+
+    public function reverse(ReverseEntryRequest $request, JournalEntry $journalEntry): JsonResponse
+    {
+        Gate::authorize('manage-books');
+
+        $reversal = $this->entries->reverse(
+            $journalEntry,
+            $request->user(),
+            $request->validated('entry_date'),
+            $request->validated('reason'),
+        );
+
+        return ApiResponse::ok($reversal, 201);
     }
 }

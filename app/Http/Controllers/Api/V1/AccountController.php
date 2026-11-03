@@ -51,6 +51,13 @@ class AccountController extends Controller
         return ApiResponse::ok(null);
     }
 
+    public function loadDefaults(): JsonResponse
+    {
+        Gate::authorize('manage-books');
+
+        return ApiResponse::ok($this->accounts->loadDefaults(), 201);
+    }
+
     public function ledger(DateRangeRequest $request, Account $account, ReportService $reports): JsonResponse
     {
         return ApiResponse::ok($reports->accountLedger($account, $request->validated('from'), $request->validated('to')));
