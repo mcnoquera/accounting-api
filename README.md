@@ -107,6 +107,8 @@ free Postgres databases expire after 30 days unless upgraded.
 
 **VAT summary** (supports BIR Form 2550Q): for a calendar quarter, vatable / zero-rated / exempt sales and purchases from the VAT codes on base lines (sales returns and reversals reduce them), output and input VAT from the VAT-account lines of those coded entries, and net VAT payable (negative = excess input VAT), by month and for the quarter. It also shows VAT computed from the codes next to VAT booked, and lists VAT-account activity in entries without a VAT code (quarter-end settlements, or sales/purchases missing their code) separately.
 
+**Percentage tax summary** (supports BIR Form 2551Q, non-VAT businesses): for a calendar quarter, gross sales/receipts from revenue lines (returns and reversals reduce them; year-end closing entries are excluded), less VAT-exempt (VATEX) sales, times the company's `percentage_tax_rate_bp` (default 3%, set on the company profile as `percentage_tax_rate`), by month and for the quarter, rounded half up. Exports to CSV/PDF.
+
 **Withholding tax summary** (supports BIR Forms 0619-E, 1601-EQ and the QAP): for a calendar quarter, tax withheld from suppliers by ATC and month (base = the amount of the line carrying the ATC; returns and reversals reduce it), the payee list by supplier and ATC with TIN, and tax customers withheld from us (Forms 2307) by customer. The payee is the contact on the coded line, or the only contact elsewhere on the entry (e.g. the payable line). Withholding accounts' activity on coded entries is shown for reconciliation; uncoded activity (remittances, 2307 applications) is listed separately. Exports: summary (CSV/PDF) and payee list (CSV).
 
 **Exports**: CSV for every report, the general ledger and the audit trail; PDF (via dompdf) for the trial balance, balance sheet, income statement and VAT summary, with the company's registered name, TIN, RDO, address and VAT status in the header and "Prepared by … on …" in the footer. CSV and PDF are built from the same table, amounts are pesos with 2 decimals, CSV text that looks like a spreadsheet formula is prefixed with `'`, and every export is written to the audit trail (`exported`, with the report, format and filters).
@@ -149,6 +151,7 @@ amounts in requests are decimal strings like `"1250.50"`.
 | GET/POST | `/contacts` | `?type=customer\|supplier&active&q`; POST admin/accountant |
 | GET/PUT/DELETE | `/contacts/{id}` | DELETE only if unused |
 | GET | `/contacts/{id}/ledger` | `?type=receivable\|payable&from&to` |
+| GET | `/reports/percentage-tax` | `?year&quarter` (calendar quarter; default current) |
 | GET | `/reports/withholding` | `?year&quarter` (calendar quarter; default current) |
 | GET | `/reports/aging` | `?type=receivable\|payable&as_of` |
 | GET/POST | `/tax-codes` | `?kind=vat\|ewt&active=1`; POST admin: `{code, name, kind, rate, vat_category?}` |
@@ -166,7 +169,7 @@ amounts in requests are decimal strings like `"1250.50"`.
 | GET | `/reports/trial-balance` · `/reports/balance-sheet` | `?as_of` |
 | GET | `/reports/income-statement` | `?from&to` |
 | GET | `/reports/vat-summary` | `?year&quarter` (calendar quarter 1–4; default current) |
-| GET | `/reports/{trial-balance\|balance-sheet\|income-statement\|vat-summary\|aging\|withholding\|withholding-payees}/export` | `?format=csv\|pdf` + the report's filters; file download |
+| GET | `/reports/{trial-balance\|balance-sheet\|income-statement\|vat-summary\|aging\|withholding\|withholding-payees\|percentage-tax}/export` | `?format=csv\|pdf` + the report's filters; file download |
 | GET | `/accounts/{id}/ledger/export` | CSV; `?from&to` |
 | GET | `/audit/logs/export` | CSV, admin/auditor; same filters as `/audit/logs`, latest 50,000 rows |
 | GET | `/audit/logs` | `?action&type&user_id&from&to` |

@@ -6,6 +6,7 @@ use App\Enums\ControlType;
 use App\Models\Account;
 use App\Models\AuditLog;
 use App\Services\ContactService;
+use App\Services\PercentageTaxService;
 use App\Services\ReportService;
 use App\Services\VatSummaryService;
 use App\Services\WithholdingSummaryService;
@@ -21,7 +22,7 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class ReportTables
 {
-    public function __construct(private ReportService $reports, private VatSummaryService $vat, private ContactService $contacts, private WithholdingSummaryService $withholding) {}
+    public function __construct(private ReportService $reports, private VatSummaryService $vat, private ContactService $contacts, private WithholdingSummaryService $withholding, private PercentageTaxService $percentageTax) {}
 
     public function trialBalance(?string $asOf): array
     {
@@ -160,6 +161,24 @@ class ReportTables
 
         return $this->table('Withholding tax summary', sprintf('Q%d %d (%s to %s), calendar quarter', $quarter, $year, $this->date($w['from']), $this->date($w['to'])),
             $columns, range(3, count($columns) - 1), $rows, $notes);
+    }
+
+    public function percentageTax(int $year, int $quarter): array
+    {
+        $p = $this->percentageTax->summary($year, $quarter);
+        $buckets = [...$p['months'], $p['total']];
+        $line = fn (string $label, string $key, string $kind = 'row') => $this->row([$label, ...array_column($buckets, $key)], $kind);
+        $rows = [
+            $line('Gross sales/receipts', 'gross'),
+            $line('Less: VAT-exempt sales', 'exempt'),
+            $line('Taxable sales/receipts', 'taxable'),
+            $line("Percentage tax due ({$p['rate']}%)", 'tax', 'total'),
+        ];
+        $columns = ['', ...array_map(fn ($m) => CarbonImmutable::parse($m['month'].'-01')->format('M Y'), $p['months']), 'Quarter'];
+        $notes = $p['vat_registered'] ? ['The company is VAT-registered; percentage tax normally does not apply.'] : [];
+
+        return $this->table('Percentage tax summary', sprintf('Q%d %d (%s to %s), calendar quarter', $quarter, $year, $this->date($p['from']), $this->date($p['to'])),
+            $columns, range(1, count($buckets)), $rows, $notes);
     }
 
     /** Quarterly alphalist of payees (QAP) source data. */
