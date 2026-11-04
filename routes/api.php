@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\V1\PurchaseBillController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\SalesInvoiceController;
 use App\Http\Controllers\Api\V1\TaxCodeController;
+use App\Http\Controllers\Api\V1\TransferController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -51,6 +52,7 @@ Route::prefix('v1')->group(function () {
         Route::post('purchase-bills/{purchaseBill}/record', [PurchaseBillController::class, 'record']);
         Route::post('purchase-bills/{purchaseBill}/void', [PurchaseBillController::class, 'void']);
 
+        Route::post('transfers', [TransferController::class, 'store']);
         Route::apiResource('payments', PaymentController::class)->only(['index', 'show', 'store']);
         Route::post('payments/{payment}/allocate', [PaymentController::class, 'allocate']);
         Route::post('payments/{payment}/void', [PaymentController::class, 'void']);

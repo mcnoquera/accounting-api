@@ -86,6 +86,8 @@ class AccountService
                     'tax_role' => DefaultChartOfAccounts::TAX_ROLES[$code] ?? null,
                     'control_type' => DefaultChartOfAccounts::CONTROL_TYPES[$code] ?? null,
                     'is_cash' => in_array($code, DefaultChartOfAccounts::CASH_ACCOUNTS, true),
+                    'cash_kind' => DefaultChartOfAccounts::CASH_KINDS[$code][0] ?? null,
+                    'provider' => DefaultChartOfAccounts::CASH_KINDS[$code][1] ?? null,
                 ])->id;
             }
 
