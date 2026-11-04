@@ -191,6 +191,6 @@ class PaymentTest extends TestCase
         Account::query()->delete();
         $this->postJson('/api/v1/accounts/load-defaults')->assertSuccessful();
         $cash = collect($this->getJson('/api/v1/accounts')->json('data'))->where('is_cash', true)->pluck('code')->all();
-        $this->assertEqualsCanonicalizing(['1110', '1120', '1130', '1140'], $cash);
+        $this->assertEqualsCanonicalizing(['1110', '1120', '1130', '1140', '1151'], $cash);
     }
 }

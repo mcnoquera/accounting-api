@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\AccountType;
+use App\Enums\CashKind;
 use App\Enums\ControlType;
 use App\Enums\TaxRole;
 use App\Models\Concerns\RecordsAudit;
@@ -15,7 +16,7 @@ class Account extends Model
 {
     use HasFactory, RecordsAudit;
 
-    protected $fillable = ['code', 'name', 'type', 'parent_id', 'tax_role', 'control_type', 'is_cash', 'description', 'is_active'];
+    protected $fillable = ['code', 'name', 'type', 'parent_id', 'tax_role', 'control_type', 'is_cash', 'cash_kind', 'provider', 'account_number_last4', 'description', 'is_active'];
 
     protected $appends = ['normal_balance'];
 
@@ -26,6 +27,7 @@ class Account extends Model
             'tax_role' => TaxRole::class,
             'control_type' => ControlType::class,
             'is_cash' => 'boolean',
+            'cash_kind' => CashKind::class,
             'parent_id' => 'integer',
             'is_active' => 'boolean',
         ];

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\AccountType;
+use App\Enums\CashKind;
 use App\Enums\ControlType;
 use App\Enums\TaxRole;
 use Illuminate\Foundation\Http\FormRequest;
@@ -34,9 +35,41 @@ class AccountRequest extends FormRequest
                     $fail('Only asset accounts can be cash or bank accounts.');
                 }
             }],
+            'cash_kind' => ['nullable', Rule::enum(CashKind::class), function (string $attr, mixed $value, \Closure $fail) {
+                $type = $this->input('type') ?? $this->route('account')?->type?->value;
+                if ($value && $type !== 'asset') {
+                    $fail('Only asset accounts can be cash, bank or e-wallet accounts.');
+                }
+            }],
+            'provider' => ['nullable', 'string', 'max:100'],
+            'account_number_last4' => ['nullable', 'regex:/^\d{4}$/'],
             'description' => ['nullable', 'string', 'max:2000'],
             'is_active' => ['sometimes', 'boolean'],
         ];
+    }
+
+    /** Keeps is_cash and cash_kind consistent: a kind makes it a cash account; no kind clears it. */
+    protected function passedValidation(): void
+    {
+        if ($this->has('cash_kind')) {
+            $this->merge(['is_cash' => $this->input('cash_kind') !== null]);
+        } elseif ($this->boolean('is_cash')) {
+            $this->merge(['cash_kind' => $this->route('account')?->cash_kind?->value ?? 'cash']);
+        } elseif ($this->has('is_cash')) {
+            $this->merge(['cash_kind' => null, 'provider' => null, 'account_number_last4' => null]);
+        }
+    }
+
+    public function validated($key = null, $default = null)
+    {
+        $data = parent::validated();
+        foreach (['is_cash', 'cash_kind', 'provider', 'account_number_last4'] as $k) {
+            if ($this->has($k)) {
+                $data[$k] = $this->input($k);
+            }
+        }
+
+        return $key === null ? $data : ($data[$key] ?? $default);
     }
 
     private function article(string $word): string

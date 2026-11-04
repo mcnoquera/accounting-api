@@ -28,7 +28,14 @@ final class DefaultChartOfAccounts
     ];
 
     /** Cash and bank accounts in the starter chart. */
-    public const CASH_ACCOUNTS = ['1110', '1120', '1130', '1140'];
+    public const CASH_ACCOUNTS = ['1110', '1120', '1130', '1140', '1151'];
+
+    /** Kind and provider of each cash account in the starter chart. */
+    public const CASH_KINDS = [
+        '1110' => ['cash', null], '1120' => ['cash', null],
+        '1130' => ['bank', null], '1140' => ['bank', null],
+        '1151' => ['ewallet', 'GCash'],
+    ];
 
     /** @return list<array{0:string, 1:string, 2:AccountType, 3:?string}> [code, name, type, parent code] */
     public static function rows(): array
@@ -45,6 +52,8 @@ final class DefaultChartOfAccounts
             ['1120', 'Petty Cash Fund', $A, '1100'],
             ['1130', 'Cash in Bank - Current Account', $A, '1100'],
             ['1140', 'Cash in Bank - Savings Account', $A, '1100'],
+            ['1150', 'E-Wallets', $A, '1100'],
+            ['1151', 'GCash', $A, '1150'],
             ['1200', 'Receivables', $A, null],
             ['1210', 'Accounts Receivable - Trade', $A, '1200'],
             ['1220', 'Allowance for Doubtful Accounts', $A, '1200'],
