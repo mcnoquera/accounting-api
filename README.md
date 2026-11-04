@@ -217,3 +217,7 @@ amounts in requests are decimal strings like `"1250.50"`.
 Controllers are thin; business rules live in `app/Services`, data access behind interfaces in
 `app/Repositories` (bound in `RepositoryServiceProvider`). Domain rule violations throw
 `DomainRuleException` and render as 422.
+
+## Releasing
+
+See [RELEASING.md](RELEASING.md) for the release checklist (gitflow, CI gates, deploy and rollback).
